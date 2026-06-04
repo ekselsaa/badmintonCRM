@@ -1,0 +1,5 @@
+                            </div>
+
+                            {{-- Pilihan Metode Pembayaran Teroptimasi (Hanya QRIS & Tunai) --}}
+                            <div class="mb-4">
+                                <label class="form-label fw-bold d-block mb-3">2. Pilih Metode Pembayaran <span class="text-danger">*</span></label>

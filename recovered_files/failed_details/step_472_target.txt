@@ -1,0 +1,22 @@
+    // Memilih Paket Membership
+    function selectPackage(element) {
+        // Hapus class active dari pilihan paket lain
+        document.querySelectorAll('.membership-card-option').forEach(card => {
+            card.classList.remove('active');
+        });
+        
+        // Tambahkan class active ke paket yang dipilih
+        element.classList.add('active');
+        
+        // Simpan nilai pilihan di hidden input
+        const val = element.getAttribute('data-value');
+        document.getElementById('input-paket').value = val;
+
+        // Reset hari dan sesi pilihan
+        document.getElementById('select-hari').value = '';
+        const sesiSelect = document.getElementById('select-sesi');
+        sesiSelect.innerHTML = '<option value="">-- Pilih Sesi --</option>';
+        sesiSelect.disabled = true;
+
+        checkFormStatus();
+    }

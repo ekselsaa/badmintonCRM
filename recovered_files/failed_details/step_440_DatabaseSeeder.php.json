@@ -1,0 +1,17 @@
+{
+    "step": 440,
+    "name": "replace_file_content",
+    "file": "\"c:\\\\xampp\\\\htdocs\\\\badmintonCRM\\\\database\\\\seeders\\\\DatabaseSeeder.php\"",
+    "args": {
+        "AllowMultiple": "false",
+        "Description": "\"Change Budi Santoso seed data to non-member\"",
+        "EndLine": "28",
+        "Instruction": "\"Set kategori_member for Budi Santoso to non-member in DatabaseSeeder.php\"",
+        "ReplacementContent": "\"        \/\/ 2. Pelanggan\\n        $pelanggan = [\\n            ['name' => 'Budi Santoso', 'email' => 'budi@mail.com', 'nomor_hp' => '081234567890', 'alamat' => 'Jl. Mawar', 'kategori_member' => 'non-member'],\\n            ['name' => 'Siti Rahayu',  'email' => 'siti@mail.com', 'nomor_hp' => '082345678901', 'alamat' => 'Jl. Melati', 'kategori_member' => 'non-member'],\\n        ];\"",
+        "StartLine": "24",
+        "TargetContent": "\"        \/\/ 2. Pelanggan\\n        $pelanggan = [\\n            ['name' => 'Budi Santoso', 'email' => 'budi@mail.com', 'nomor_hp' => '081234567890', 'alamat' => 'Jl. Mawar', 'kategori_member' => 'member'],\\n            ['name' => 'Siti Rahayu',  'email' => 'siti@mail.com', 'nomor_hp' => '082345678901', 'alamat' => 'Jl. Melati', 'kategori_member' => 'non-member'],\\n        ];\"",
+        "TargetFile": "\"c:\\\\xampp\\\\htdocs\\\\badmintonCRM\\\\database\\\\seeders\\\\DatabaseSeeder.php\"",
+        "toolAction": "\"Updating Budi Santoso seed data\"",
+        "toolSummary": "\"DatabaseSeeder edit\""
+    }
+}
