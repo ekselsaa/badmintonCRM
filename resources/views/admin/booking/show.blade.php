@@ -267,6 +267,23 @@
                                 </div>
                             @endif
                         @endif
+                    @elseif($booking->catatan && str_contains($booking->catatan, 'Sesi Rutin Member'))
+                        <div class="text-center mb-4">
+                            <div class="mb-2" style="font-size:3rem">✅</div>
+                            <h6 class="text-success fw-bold">Pembayaran Diverifikasi</h6>
+                            <p class="text-muted small">Sesi rutin member ini gratis/termasuk dalam paket membership.</p>
+                        </div>
+
+                        <div class="p-3 rounded-3 mb-3" style="background:#f8fafc; border:1px solid #e2e8f0;">
+                            <div class="d-flex justify-content-between mb-2">
+                                <small class="text-muted">Metode Pembayaran</small>
+                                <span class="fw-bold text-dark">MEMBERSHIP</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">Jumlah Bayar</small>
+                                <span class="fw-bold text-success">Rp 0 (Sesi Free)</span>
+                            </div>
+                        </div>
                     @else
                         <div class="alert alert-light text-center border rounded-3 py-4">
                             <i class="bi bi-credit-card-2-back text-muted fs-3 d-block mb-2"></i>

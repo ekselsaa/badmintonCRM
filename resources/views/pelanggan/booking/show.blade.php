@@ -128,8 +128,27 @@
 
                 {{-- Pembayaran --}}
                 <div class="col-lg-6">
-                    {{-- Tampilkan Status hanya jika SUDAH upload bukti ATAU SUDAH diverifikasi/ditolak --}}
-                    @if($booking->pembayaran && ($booking->pembayaran->bukti_pembayaran || $booking->pembayaran->status_verifikasi !== 'menunggu'))
+                    {{-- Tampilkan Status hanya jika SUDAH upload bukti ATAU SUDAH diverifikasi/ditolak ATAU jika ini sesi rutin member --}}
+                    @if($booking->catatan && str_contains($booking->catatan, 'Sesi Rutin Member'))
+                    <div class="table-card p-4">
+                        <h6 class="fw-bold mb-4"><i class="bi bi-credit-card me-2 text-success"></i>Status Pembayaran</h6>
+                        <div class="text-center mb-3">
+                            <div class="mb-2" style="font-size:3rem">✅</div>
+                            <h6 class="text-success fw-bold">Sesi Member Aktif</h6>
+                            <p class="text-muted small">Sesi ini bagian dari paket membership Anda.</p>
+                        </div>
+                        <div class="p-3 rounded-3" style="background:#f8fafc">
+                            <div class="d-flex justify-content-between mb-2">
+                                <small class="text-muted">Metode</small>
+                                <span class="fw-500">Membership</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">Jumlah Bayar</small>
+                                <span class="fw-bold text-success">Rp 0 (Sesi Free)</span>
+                            </div>
+                        </div>
+                    </div>
+                    @elseif($booking->pembayaran && ($booking->pembayaran->bukti_pembayaran || $booking->pembayaran->status_verifikasi !== 'menunggu'))
                     {{-- Sudah Upload Bukti / Selesai Proses --}}
                     <div class="table-card p-4">
                         <h6 class="fw-bold mb-4"><i class="bi bi-credit-card me-2 text-success"></i>Status Pembayaran</h6>

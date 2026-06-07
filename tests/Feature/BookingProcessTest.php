@@ -311,25 +311,18 @@ class BookingProcessTest extends TestCase
         $this->assertTrue($member->isMember());
         $this->assertEquals('weekday_malam', $member->kategori_member);
 
-        // 6. Assert that 4 bookings were automatically created in the database
+        // 6. Assert that only 1 booking (the first session with actual price) was automatically created in the database
         $bookings = Booking::where('user_id', $member->id)->get();
-        $this->assertCount(4, $bookings);
+        $this->assertCount(1, $bookings);
+        $firstBooking = $bookings->first();
+        $this->assertEquals(500000, $firstBooking->total_harga);
+        $this->assertEquals('dipesan', $firstBooking->status);
 
-        // 7. Get the dates of next 4 Mondays
+        // 7. Get the dates of next 4 Mondays and assert that all corresponding Jadwal exist and are blocked
         $monday = Carbon::parse('next monday');
         for ($i = 0; $i < 4; $i++) {
             $formattedDate = $monday->format('Y-m-d');
             
-            // Find booking for this date
-            $booking = $bookings->first(function($b) use ($formattedDate) {
-                return $b->tanggal_booking->format('Y-m-d') === $formattedDate;
-            });
-            $this->assertNotNull($booking, "Booking not found for date {$formattedDate}");
-            $this->assertEquals($this->lapangan->id, $booking->lapangan_id);
-            $this->assertEquals('dipesan', $booking->status);
-            $expectedHarga = ($i === 0) ? 500000 : 0;
-            $this->assertEquals($expectedHarga, $booking->total_harga);
-
             // Assert corresponding Jadwal exists
             $jadwal = Jadwal::where('lapangan_id', $this->lapangan->id)
                 ->whereDate('tanggal', $formattedDate)

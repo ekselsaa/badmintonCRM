@@ -92,6 +92,13 @@
                                             <i class="bi bi-credit-card me-1"></i> {{ ucfirst($b->pembayaran->status_verifikasi) }}
                                         </span>
                                     </div>
+                                @elseif($b->catatan && str_contains($b->catatan, 'Sesi Rutin Member'))
+                                    <div class="mb-2">
+                                        <span class="text-muted small me-2">Pembayaran:</span>
+                                        <span class="badge bg-success text-white" style="font-size:0.75rem">
+                                            <i class="bi bi-star-fill me-1"></i> Member
+                                        </span>
+                                    </div>
                                 @endif
 
                                 <div class="d-flex gap-2 justify-content-md-end mt-3">

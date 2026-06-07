@@ -137,23 +137,25 @@ class DatabaseSeeder extends Seeder
                     ['jam_selesai' => $cfg['selesai'], 'status' => 'dipesan', 'keterangan' => 'Slot Member: ' . $cfg['user']->name]
                 );
 
-                $booking = Booking::create([
-                    'user_id'         => $cfg['user']->id,
-                    'jadwal_id'       => $jadwal->id,
-                    'lapangan_id'     => $cfg['lapangan']->id,
-                    'tanggal_booking' => $dateStr,
-                    'total_harga'     => 0,
-                    'status'          => 'dipesan',
-                    'catatan'         => 'Sesi Rutin Member (Paket ' . $cfg['paket'] . ')',
-                ]);
+                if ($w === 0) {
+                    $booking = Booking::create([
+                        'user_id'         => $cfg['user']->id,
+                        'jadwal_id'       => $jadwal->id,
+                        'lapangan_id'     => $cfg['lapangan']->id,
+                        'tanggal_booking' => $dateStr,
+                        'total_harga'     => $cfg['payment']->jumlah_bayar,
+                        'status'          => 'dipesan',
+                        'catatan'         => 'Sesi Rutin Member (Paket ' . $cfg['paket'] . ')',
+                    ]);
 
-                $booking->pembayaran()->create([
-                    'jumlah_bayar'      => 0,
-                    'metode_pembayaran' => 'qris',
-                    'status_verifikasi' => 'diverifikasi',
-                    'catatan_admin'     => 'Auto-generated dari verifikasi membership #' . $cfg['payment']->id,
-                    'verified_at'       => now(),
-                ]);
+                    $booking->pembayaran()->create([
+                        'jumlah_bayar'      => $cfg['payment']->jumlah_bayar,
+                        'metode_pembayaran' => 'qris',
+                        'status_verifikasi' => 'diverifikasi',
+                        'catatan_admin'     => 'Auto-generated dari verifikasi membership #' . $cfg['payment']->id,
+                        'verified_at'       => now(),
+                    ]);
+                }
 
                 $nextDate->addWeek();
             }

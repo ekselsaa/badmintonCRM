@@ -255,6 +255,11 @@
                                     {{ $b->pembayaran->status_verifikasi === 'diverifikasi' ? '✅ Lunas' : ($b->pembayaran->status_verifikasi === 'menunggu' ? '⏳ Pending' : '❌ Tolak') }}
                                 </span>
                                 <div class="text-secondary" style="font-size:0.62rem;"><i class="bi bi-credit-card me-1"></i>{{ strtoupper($b->pembayaran->metode_pembayaran) }}</div>
+                            @elseif($b->catatan && str_contains($b->catatan, 'Sesi Rutin Member'))
+                                <span class="badge bg-success px-2 py-1 rounded-pill" style="font-size:.65rem">
+                                    ✅ Lunas
+                                </span>
+                                <div class="text-secondary" style="font-size:0.62rem;"><i class="bi bi-star-fill text-warning me-1"></i>MEMBER</div>
                             @else
                                 <span class="badge bg-light text-muted border px-2 py-1 rounded-pill" style="font-size:.65rem">Belum bayar</span>
                             @endif

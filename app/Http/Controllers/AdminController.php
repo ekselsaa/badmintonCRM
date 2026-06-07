@@ -695,11 +695,10 @@ class AdminController extends Controller
             ->whereIn('status', ['dipesan', 'selesai'])
             ->sum('total_harga');
 
-        // Jumlah booking yang sudah dikonfirmasi pembayarannya (dipesan + selesai) (hanya transaksi yang berbayar)
+        // Jumlah booking yang sudah dikonfirmasi pembayarannya (dipesan + selesai)
         $bookingDikonfirmasi = Booking::whereYear('tanggal_booking', $filter->year)
             ->whereMonth('tanggal_booking', $filter->month)
             ->whereIn('status', ['dipesan', 'selesai'])
-            ->where('total_harga', '>', 0)
             ->count();
 
         $bookingDibatalkan = Booking::whereYear('tanggal_booking', $filter->year)
@@ -1108,21 +1107,20 @@ class AdminController extends Controller
                         );
 
                         // Masukkan nominal bayar membership pada booking sesi pertama agar tercatat di laporan transaksi
-                        $hargaBooking = ($index === 0) ? $payment->jumlah_bayar : 0;
+                        // Sesi rutin lainnya (index > 0) tidak dibuatkan booking record (transaksi 0) untuk menghindari data sampah.
+                        if ($index === 0) {
+                            $booking = \App\Models\Booking::create([
+                                'user_id'         => $payment->user_id,
+                                'jadwal_id'       => $jadwal->id,
+                                'lapangan_id'     => $payment->lapangan_id,
+                                'tanggal_booking' => $date,
+                                'total_harga'     => $payment->jumlah_bayar,
+                                'status'          => 'dipesan',
+                                'catatan'         => 'Sesi Rutin Member (Paket ' . ucfirst($payment->paket) . ')',
+                            ]);
 
-                        $booking = \App\Models\Booking::create([
-                            'user_id'         => $payment->user_id,
-                            'jadwal_id'       => $jadwal->id,
-                            'lapangan_id'     => $payment->lapangan_id,
-                            'tanggal_booking' => $date,
-                            'total_harga'     => $hargaBooking,
-                            'status'          => 'dipesan',
-                            'catatan'         => 'Sesi Rutin Member (Paket ' . ucfirst($payment->paket) . ')',
-                        ]);
-
-                        if ($hargaBooking > 0) {
                             $booking->pembayaran()->create([
-                                'jumlah_bayar'      => $hargaBooking,
+                                'jumlah_bayar'      => $payment->jumlah_bayar,
                                 'metode_pembayaran' => $payment->metode_pembayaran,
                                 'status_verifikasi' => 'diverifikasi',
                                 'catatan_admin'     => 'Auto-generated dari verifikasi membership #' . $payment->id,
