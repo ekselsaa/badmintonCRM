@@ -675,10 +675,11 @@ class AdminController extends Controller
         $bulan  = $request->get('bulan', now()->format('Y-m'));
         $filter = Carbon::parse($bulan . '-01');
 
-        // Booking per hari dalam bulan terpilih
+        // Booking per hari dalam bulan terpilih (hanya transaksi yang berbayar)
         $bookingPerHari = Booking::with(['lapangan', 'user'])
             ->whereYear('tanggal_booking', $filter->year)
             ->whereMonth('tanggal_booking', $filter->month)
+            ->where('total_harga', '>', 0)
             ->orderBy('tanggal_booking')
             ->get()
             ->groupBy('tanggal_booking');
@@ -767,6 +768,7 @@ class AdminController extends Controller
             ->whereYear('tanggal_booking', $filter->year)
             ->whereMonth('tanggal_booking', $filter->month)
             ->whereIn('status', ['dipesan', 'selesai'])
+            ->where('total_harga', '>', 0)
             ->orderBy('tanggal_booking')
             ->get();
 
@@ -795,6 +797,7 @@ class AdminController extends Controller
             ->whereYear('tanggal_booking', $filter->year)
             ->whereMonth('tanggal_booking', $filter->month)
             ->whereIn('status', ['dipesan', 'selesai'])
+            ->where('total_harga', '>', 0)
             ->orderBy('tanggal_booking')
             ->get();
 
@@ -1116,13 +1119,15 @@ class AdminController extends Controller
                             'catatan'         => 'Sesi Rutin Member (Paket ' . ucfirst($payment->paket) . ')',
                         ]);
 
-                        $booking->pembayaran()->create([
-                            'jumlah_bayar'      => $hargaBooking,
-                            'metode_pembayaran' => $payment->metode_pembayaran,
-                            'status_verifikasi' => 'diverifikasi',
-                            'catatan_admin'     => 'Auto-generated dari verifikasi membership #' . $payment->id,
-                            'verified_at'       => now(),
-                        ]);
+                        if ($hargaBooking > 0) {
+                            $booking->pembayaran()->create([
+                                'jumlah_bayar'      => $hargaBooking,
+                                'metode_pembayaran' => $payment->metode_pembayaran,
+                                'status_verifikasi' => 'diverifikasi',
+                                'catatan_admin'     => 'Auto-generated dari verifikasi membership #' . $payment->id,
+                                'verified_at'       => now(),
+                            ]);
+                        }
                     }
                 }
             }
