@@ -695,10 +695,11 @@ class AdminController extends Controller
             ->whereIn('status', ['dipesan', 'selesai'])
             ->sum('total_harga');
 
-        // Jumlah booking yang sudah dikonfirmasi pembayarannya (dipesan + selesai)
+        // Jumlah booking yang sudah dikonfirmasi pembayarannya (dipesan + selesai) (hanya transaksi yang berbayar)
         $bookingDikonfirmasi = Booking::whereYear('tanggal_booking', $filter->year)
             ->whereMonth('tanggal_booking', $filter->month)
             ->whereIn('status', ['dipesan', 'selesai'])
+            ->where('total_harga', '>', 0)
             ->count();
 
         $bookingDibatalkan = Booking::whereYear('tanggal_booking', $filter->year)
