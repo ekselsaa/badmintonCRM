@@ -197,8 +197,8 @@ body {
     position: relative;
 }
 .slot-card .s-top {
-    font-size: .6rem; font-weight: 700; letter-spacing: .06em;
-    text-transform: uppercase; padding: .22rem .4rem; text-align: center;
+    font-size: .68rem; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; padding: .25rem .4rem; text-align: center;
 }
 .slot-card .s-body {
     padding: .45rem .5rem .45rem;
@@ -211,22 +211,22 @@ body {
     letter-spacing: -.5px; margin-top: .05rem;
 }
 .slot-card .s-until {
-    font-size: .6rem; color: #64748b; font-weight: 500;
+    font-size: .68rem; color: #64748b; font-weight: 500;
 }
 .slot-card .s-action { width: 100%; margin-top: auto; padding-top: .3rem; }
 .s-btn {
     display: block; width: 100%; text-align: center;
     background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    color: #fff; font-size: .67rem; font-weight: 700;
+    color: #fff; font-size: .73rem; font-weight: 700;
     padding: .3rem .35rem; border-radius: 7px;
     text-decoration: none; transition: opacity .15s; border: none;
 }
 .s-btn:hover { opacity: .88; color: #fff; }
 .s-note {
-    font-size: .54rem; color: #94a3b8; overflow: hidden;
+    font-size: .73rem; color: #334155; font-weight: 600; margin-top: .15rem; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
 }
-.s-finish { font-size: .6rem; color: #94a3b8; margin-top: auto; padding-top: .25rem; }
+.s-finish { font-size: .68rem; color: #64748b; margin-top: auto; padding-top: .25rem; }
 
 /* ── Status variants ── */
 .slot-card.st-tersedia { border-color: #bbf7d0; }
