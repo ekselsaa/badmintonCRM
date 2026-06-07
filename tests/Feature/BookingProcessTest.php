@@ -262,7 +262,7 @@ class BookingProcessTest extends TestCase
         $response = $this->get('/jadwal?tanggal=' . $monday->format('Y-m-d'));
         
         $response->assertStatus(200);
-        $response->assertSee('Slot Member: Member Malam');
+        $response->assertSee('Member Malam');
     }
 
     public function test_admin_verification_creates_four_weekly_bookings()

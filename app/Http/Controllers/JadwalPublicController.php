@@ -31,7 +31,7 @@ class JadwalPublicController extends Controller
         $lapangans = Lapangan::orderBy('status', 'asc')->orderBy('nama_lapangan', 'asc')->get();
 
         // Ambil semua jadwal (dipesan, pending, dan ditutup/diblokir admin)
-        $booked_jadwals = Jadwal::with('lapangan')
+        $booked_jadwals = Jadwal::with(['lapangan', 'booking.user'])
             ->whereDate('tanggal', $tanggal)
             ->whereIn('status', ['dipesan', 'pending', 'ditutup'])
             ->get();
@@ -75,7 +75,21 @@ class JadwalPublicController extends Controller
                         return $booking->jam_mulai < $end && $booking->jam_selesai > $start;
                     });
                     $status = $db_slot ? $db_slot->status : 'tersedia';
-                    $keterangan = $db_slot ? $db_slot->keterangan : null;
+                    $keterangan = null;
+                    if ($db_slot) {
+                        if ($status === 'dipesan' || $status === 'pending') {
+                            if ($db_slot->booking) {
+                                $keterangan = $db_slot->booking->is_offline 
+                                    ? $db_slot->booking->nama_pemesan_offline 
+                                    : ($db_slot->booking->user->name ?? null);
+                            }
+                            if (empty($keterangan) && !empty($db_slot->keterangan)) {
+                                $keterangan = str_replace(['Booking Offline: ', 'Slot Member: '], '', $db_slot->keterangan);
+                            }
+                        } else {
+                            $keterangan = $db_slot->keterangan;
+                        }
+                    }
                 }
                 
                 $slotStart = \Carbon\Carbon::parse($tanggal . ' ' . $start);
@@ -131,7 +145,8 @@ class JadwalPublicController extends Controller
         $isWeekend = \Carbon\Carbon::parse($tanggal)->isWeekend();
 
         // Ambil booking yang sudah ada (dipesan, pending, ditutup)
-        $booked_jadwals = Jadwal::where('lapangan_id', $lapanganId)
+        $booked_jadwals = Jadwal::with('booking.user')
+            ->where('lapangan_id', $lapanganId)
             ->whereDate('tanggal', $tanggal)
             ->whereIn('status', ['dipesan', 'pending', 'ditutup'])
             ->get();
@@ -159,7 +174,21 @@ class JadwalPublicController extends Controller
                     return $booking->jam_mulai < $end && $booking->jam_selesai > $start;
                 });
                 $status = $db_slot ? $db_slot->status : 'tersedia';
-                $keterangan = $db_slot ? $db_slot->keterangan : null;
+                $keterangan = null;
+                if ($db_slot) {
+                    if ($status === 'dipesan' || $status === 'pending') {
+                        if ($db_slot->booking) {
+                            $keterangan = $db_slot->booking->is_offline 
+                                ? $db_slot->booking->nama_pemesan_offline 
+                                : ($db_slot->booking->user->name ?? null);
+                        }
+                        if (empty($keterangan) && !empty($db_slot->keterangan)) {
+                            $keterangan = str_replace(['Booking Offline: ', 'Slot Member: '], '', $db_slot->keterangan);
+                        }
+                    } else {
+                        $keterangan = $db_slot->keterangan;
+                    }
+                }
             }
 
             $jadwals->push((object)[
