@@ -33,7 +33,7 @@
                 <div class="s-body">
                     <div class="s-time">{{ substr($j->jam_mulai,0,5) }}</div>
                     <div class="s-until">s/d {{ substr($j->jam_selesai,0,5) }}</div>
-                    <span class="s-btn mt-1"><i class="bi bi-calendar-check"></i> Booking</span>
+                    <span class="s-btn mt-1"><i class="bi bi-calendar-check"></i> Pesan</span>
                 </div>
             </a>
         @endif
@@ -44,7 +44,7 @@
             <div class="s-body">
                 <div class="s-time">{{ substr($j->jam_mulai,0,5) }}</div>
                 <div class="s-until">s/d {{ substr($j->jam_selesai,0,5) }}</div>
-                <span class="s-btn mt-1"><i class="bi bi-box-arrow-in-right"></i> Masuk</span>
+                <span class="s-btn mt-1"><i class="bi bi-calendar-check"></i> Pesan</span>
             </div>
         </a>
     @elseif($isPast && $j->status === 'tersedia')
