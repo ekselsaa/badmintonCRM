@@ -661,9 +661,7 @@
             <a class="nav-link-custom" href="#keunggulan">Keunggulan</a>
             <a class="nav-link-custom" href="#lapangan">Lapangan</a>
             <a class="nav-link-custom" href="#kelengkapan">Kelengkapan</a>
-            @if($testimonis->isNotEmpty())
             <a class="nav-link-custom" href="#testimoni">Testimoni</a>
-            @endif
             <a class="nav-link-custom" href="#lokasi">Lokasi</a>
         </div>
 
@@ -1007,7 +1005,7 @@
 </section>
 
 
-@if($testimonis->isNotEmpty())
+{{-- ══ TESTIMONI ══ --}}
 {{-- ══ TESTIMONI ══ --}}
 <section id="testimoni" style="background:var(--s50);">
     <div class="container">
@@ -1041,30 +1039,13 @@
                     </div>
                 </div>
                 @empty
-                {{-- Dummy data --}}
-                @foreach([
-                    ['B','Budi Santoso','Member Aktif','Lapangan sangat terawat, lampunya terang dan tidak silau saat main malam. Sistem booking-nya sangat membantu!',5,'135deg,#1a56db,#0ea5e9'],
-                    ['A','Andi Pratama','Club Badminton','Sering main di sini bareng teman kantor. Tempatnya bersih, parkir luas, dan adminnya ramah. Rekomendasi!',5,'135deg,#16a34a,#22c55e'],
-                    ['R','Rina Wijaya','Pelanggan Umum','Harga sewanya terjangkau dan raket sewanya bagus. Top banget Anbiyaa Sport!',5,'135deg,#d97706,#f59e0b'],
-                    ['F','Fajar Hidayat','Pelanggan','Proses booking online-nya gampang banget, langsung dapat konfirmasi. Lapangannya luas dan nyaman.',4,'135deg,#7c3aed,#8b5cf6'],
-                    ['S','Siti Rahayu','Member Baru','Baru pertama kali ke sini, langsung jatuh cinta sama fasilitas dan pelayanannya. Pasti balik lagi!',5,'135deg,#0891b2,#0ea5e9'],
-                ] as $d)
-                <div class="testi-card">
-                    <div class="testi-stars mb-2">
-                        @for($i=1;$i<=5;$i++)
-                            <i class="bi bi-star{{ $i<=$d[4] ? '-fill' : '' }}"></i>
-                        @endfor
+                <div class="w-100 text-center py-5 d-flex flex-column align-items-center justify-content-center">
+                    <div style="width:64px;height:64px;border-radius:50%;background:rgba(37,99,235,.06);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem">
+                        <i class="bi bi-chat-left-heart fs-3 text-primary"></i>
                     </div>
-                    <p class="testi-quote mb-3">{{ $d[3] }}</p>
-                    <div class="d-flex align-items-center gap-2 mt-auto">
-                        <div class="testi-avatar" style="background:linear-gradient({{ $d[5] }})">{{ $d[0] }}</div>
-                        <div>
-                            <div class="fw-bold" style="font-size:.85rem">{{ $d[1] }}</div>
-                            <div class="text-muted" style="font-size:.73rem">{{ $d[2] }}</div>
-                        </div>
-                    </div>
+                    <h5 class="fw-bold mb-1" style="color:var(--n800,#1e293b);">Belum Ada Ulasan</h5>
+                    <p class="text-muted mb-0" style="font-size:.85rem;max-width:380px;line-height:1.6">Belum ada testimoni dari para pemain. Ulasan pertama akan muncul di sini setelah ada pelanggan yang menyelesaikan sesi bermain dan menulis ulasan!</p>
                 </div>
-                @endforeach
                 @endforelse
             </div>
         </div>
@@ -1072,7 +1053,6 @@
         <div class="d-flex justify-content-center gap-2 mt-4" id="testiDots"></div>
     </div>
 </section>
-@endif
 
 
 {{-- ══ LOKASI ══ --}}
