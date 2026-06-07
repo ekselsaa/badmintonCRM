@@ -422,7 +422,7 @@ body {
 
     <!-- ── Schedule ── -->
     <div id="scheduleContainer" data-schedule-grid>
-    @if(count($jadwalPerLapangan) > 0)
+    @if($jadwals->count() > 0)
 
     {{-- Single lapangan mode --}}
     @if($lapangan_id)
@@ -490,8 +490,14 @@ body {
         <div style="width:56px;height:56px;border-radius:14px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem">
             <i class="bi bi-calendar-x fs-4 text-muted"></i>
         </div>
-        <p class="text-muted mb-1" style="font-size:.85rem">Tidak ada jadwal pada tanggal ini.</p>
-        <a href="{{ route('jadwal.index') }}" class="btn btn-sm text-white" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:8px;border:none">Coba Hari Lain</a>
+        @if($status_filter)
+            <p class="text-muted mb-1" style="font-size:.85rem">Tidak ada slot dengan status <strong>{{ $status_filter }}</strong> pada tanggal ini.</p>
+        @else
+            <p class="text-muted mb-1" style="font-size:.85rem">Tidak ada jadwal pada tanggal ini.</p>
+        @endif
+        <div class="mt-3 d-flex justify-content-center gap-2">
+            <a href="{{ route('jadwal.index') }}" class="btn btn-sm text-white" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:8px;border:none;padding:.35rem 1rem">Reset Filter</a>
+        </div>
     </div>
     @endif
     </div>
