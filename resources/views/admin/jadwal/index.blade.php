@@ -201,7 +201,7 @@
                                         <option value="{{ $l->id }}"
                                             data-weekday="{{ $l->harga_weekday }}"
                                             data-weekend="{{ $l->harga_weekend }}"
-                                            {{ old('lapangan_id') == $l->id ? 'selected' : '' }}>
+                                            {{ request('lapangan_id', old('lapangan_id')) == $l->id ? 'selected' : '' }}>
                                             {{ $l->nama_lapangan }}
                                         </option>
                                     @endforeach
@@ -213,7 +213,7 @@
                                 <label class="form-label fw-600 small text-secondary">Tanggal <span class="text-danger">*</span></label>
                                 <input type="date" name="tanggal" id="off_tanggal"
                                     class="form-control @error('tanggal') is-invalid @enderror"
-                                    value="{{ old('tanggal', date('Y-m-d')) }}" min="{{ date('Y-m-d') }}"
+                                    value="{{ request('tanggal', old('tanggal', date('Y-m-d'))) }}" min="{{ date('Y-m-d') }}"
                                     required onchange="autoHarga()">
                                 @error('tanggal')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
@@ -222,12 +222,12 @@
                                 <div class="col-6">
                                     <label class="form-label fw-600 small text-secondary">Jam Mulai <span class="text-danger">*</span></label>
                                     <input type="time" name="jam_mulai" id="off_jam_mulai" class="form-control @error('jam_mulai') is-invalid @enderror"
-                                        value="{{ old('jam_mulai', '07:00') }}" required onchange="autoHarga()">
+                                        value="{{ request('jam_mulai', old('jam_mulai', '07:00')) }}" required onchange="autoHarga()">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label fw-600 small text-secondary">Jam Selesai <span class="text-danger">*</span></label>
                                     <input type="time" name="jam_selesai" id="off_jam_selesai" class="form-control @error('jam_selesai') is-invalid @enderror"
-                                        value="{{ old('jam_selesai', '08:00') }}" required onchange="autoHarga()">
+                                        value="{{ request('jam_selesai', old('jam_selesai', '08:00')) }}" required onchange="autoHarga()">
                                     @error('jam_selesai')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                                 </div>
                             </div>
@@ -338,7 +338,7 @@
                                 <select name="lapangan_id" class="form-select @error('lapangan_id') is-invalid @enderror" required>
                                     <option value="">-- Pilih Lapangan --</option>
                                     @foreach($lapangans as $l)
-                                        <option value="{{ $l->id }}" {{ old('lapangan_id') == $l->id ? 'selected' : '' }}>
+                                        <option value="{{ $l->id }}" {{ request('lapangan_id', old('lapangan_id')) == $l->id ? 'selected' : '' }}>
                                             {{ $l->nama_lapangan }}
                                         </option>
                                     @endforeach
@@ -348,19 +348,19 @@
                             <div class="mb-3">
                                 <label class="form-label fw-600 small text-secondary">Tanggal <span class="text-danger">*</span></label>
                                 <input type="date" name="tanggal" id="blokir_tanggal" class="form-control"
-                                    value="{{ old('tanggal', date('Y-m-d')) }}" min="{{ date('Y-m-d') }}" required>
+                                    value="{{ request('tanggal', old('tanggal', date('Y-m-d'))) }}" min="{{ date('Y-m-d') }}" required>
                             </div>
 
                             <div class="row g-3 mb-1">
                                 <div class="col-6">
                                     <label class="form-label fw-600 small text-secondary">Jam Mulai <span class="text-danger">*</span></label>
                                     <input type="time" name="jam_mulai" id="blokir_jam_mulai" class="form-control"
-                                        value="{{ old('jam_mulai', '07:00') }}" required>
+                                        value="{{ request('jam_mulai', old('jam_mulai', '07:00')) }}" required>
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label fw-600 small text-secondary">Jam Selesai <span class="text-danger">*</span></label>
                                     <input type="time" name="jam_selesai" id="blokir_jam_selesai" class="form-control"
-                                        value="{{ old('jam_selesai', '08:00') }}" required>
+                                        value="{{ request('jam_selesai', old('jam_selesai', '08:00')) }}" required>
                                 </div>
                             </div>
                             <div id="blokir_time_warning" class="text-danger small mb-3 d-none fw-bold" style="transition: all 0.3s ease;">
@@ -422,10 +422,10 @@
             </div>
         </div>
 
-        {{-- ════ Kolom Kanan: Tabel Hari Libur ════ --}}
+        {{-- ════ Kolom Kanan: Tabel Hari Libur & Blokir ════ --}}
         <div class="col-lg-7">
             {{-- Tabel Hari Libur --}}
-            <div class="table-card">
+            <div class="table-card mb-4">
                 <div class="table-card-header-custom">
                     <h6 class="mb-0 fw-bold text-danger"><i class="bi bi-calendar-x me-2"></i>Daftar Hari Libur / Tutup</h6>
                 </div>
@@ -467,6 +467,54 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            {{-- Tabel Blokir Jam Lapangan --}}
+            <div class="table-card">
+                <div class="table-card-header-custom" style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-bottom: 1px solid #fde68a;">
+                    <h6 class="mb-0 fw-bold text-warning"><i class="bi bi-lock-fill me-2"></i>Daftar Blokir Jam Lapangan</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Lapangan</th>
+                                <th>Waktu</th>
+                                <th>Keterangan</th>
+                                <th class="text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($jadwals ?? [] as $j)
+                            <tr>
+                                <td class="fw-600 text-dark">
+                                    <i class="bi bi-calendar-check me-2 text-warning"></i>{{ \Carbon\Carbon::parse($j->tanggal)->format('d/m/Y') }}
+                                </td>
+                                <td>
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{{ $j->lapangan->nama_lapangan }}</span>
+                                </td>
+                                <td class="fw-bold">{{ substr($j->jam_mulai, 0, 5) }} - {{ substr($j->jam_selesai, 0, 5) }}</td>
+                                <td class="text-muted">{{ $j->keterangan ?? '-' }}</td>
+                                <td class="text-center">
+                                    <form action="{{ route('admin.jadwal.destroy', $j->id) }}" method="POST" class="d-inline"
+                                        onsubmit="return confirm('Buka kembali jam lapangan ini?')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="btn-action-delete" title="Hapus"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr><td colspan="5" class="text-center text-muted py-5">Belum ada jam lapangan yang diblokir.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                @if($jadwals && $jadwals->hasPages())
+                <div class="card-footer bg-white border-0 px-3 py-2 d-flex justify-content-center">
+                    {{ $jadwals->links() }}
+                </div>
+                @endif
             </div>
         </div>
     </div>
@@ -844,11 +892,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let activeTabId = 'offline-tab';
     
-    @if(old('form_type') === 'blokir' || (session('error') && strpos(session('error'), 'Gagal memblokir') !== false))
+    @if(request('tab') === 'blokir' || old('form_type') === 'blokir' || (session('error') && strpos(session('error'), 'Gagal memblokir') !== false))
         activeTabId = 'blokir-tab';
-    @elseif(old('form_type') === 'libur')
+    @elseif(request('tab') === 'libur' || old('form_type') === 'libur')
         activeTabId = 'libur-tab';
-    @elseif(old('form_type') === 'offline' || (session('error') && strpos(session('error'), 'Gagal! Slot waktu') !== false) || (session('error') && strpos(session('error'), 'Gagal mencatat booking offline') !== false))
+    @elseif(request('tab') === 'offline' || old('form_type') === 'offline' || (session('error') && strpos(session('error'), 'Gagal! Slot waktu') !== false) || (session('error') && strpos(session('error'), 'Gagal mencatat booking offline') !== false))
         activeTabId = 'offline-tab';
     @endif
     

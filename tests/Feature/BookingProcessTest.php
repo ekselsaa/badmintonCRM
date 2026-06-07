@@ -343,4 +343,85 @@ class BookingProcessTest extends TestCase
             $monday = $monday->copy()->next('Monday');
         }
     }
+
+    public function test_offline_customer_deletion()
+    {
+        $admin = User::create([
+            'name' => 'Admin User',
+            'email' => 'admin_crm@test.com',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+        ]);
+
+        // Create offline booking
+        $booking = Booking::create([
+            'jadwal_id' => $this->jadwal->id,
+            'lapangan_id' => $this->lapangan->id,
+            'tanggal_booking' => Carbon::tomorrow()->format('Y-m-d'),
+            'total_harga' => $this->jadwal->harga,
+            'status' => 'dipesan',
+            'is_offline' => true,
+            'nama_pemesan_offline' => 'Walk-in Guest',
+            'no_hp_offline' => '0812345678',
+        ]);
+
+        $this->assertDatabaseHas('bookings', [
+            'nama_pemesan_offline' => 'Walk-in Guest',
+            'is_offline' => true,
+        ]);
+
+        // Delete offline customer
+        $response = $this->actingAs($admin)->delete('/admin/crm/pelanggan/offline', [
+            'name' => 'Walk-in Guest',
+            'nomor_hp' => '0812345678',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        // Assert booking is deleted
+        $this->assertDatabaseMissing('bookings', [
+            'nama_pemesan_offline' => 'Walk-in Guest',
+        ]);
+    }
+
+    public function test_booking_deletion_resets_schedule_status()
+    {
+        // Set jadwal status to pending
+        $this->jadwal->update(['status' => 'pending']);
+
+        // Create booking
+        $booking = Booking::create([
+            'user_id' => $this->pelanggan->id,
+            'jadwal_id' => $this->jadwal->id,
+            'lapangan_id' => $this->lapangan->id,
+            'tanggal_booking' => Carbon::tomorrow()->format('Y-m-d'),
+            'total_harga' => $this->jadwal->harga,
+            'status' => 'pending',
+        ]);
+
+        $this->assertEquals('pending', $this->jadwal->fresh()->status);
+
+        // Delete booking
+        $booking->delete();
+
+        // Assert schedule status is back to tersedia
+        $this->assertEquals('tersedia', $this->jadwal->fresh()->status);
+    }
+
+    public function test_admin_schedule_page_shows_manage_button()
+    {
+        $admin = User::create([
+            'name' => 'Admin User',
+            'email' => 'admin_schedule@test.com',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+        ]);
+
+        $response = $this->actingAs($admin)->get('/jadwal?tanggal=' . Carbon::tomorrow()->format('Y-m-d'));
+        $response->assertStatus(200);
+        $response->assertSee('Kelola');
+        $response->assertSee('admin/jadwal');
+    }
 }
+

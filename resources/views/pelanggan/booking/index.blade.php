@@ -714,6 +714,77 @@
         <input type="hidden" id="filter_tanggal_create" value="{{ request('tanggal', $tanggal) }}">
         <input type="hidden" id="filter_status_create" value="">
 
+        {{-- ✅ Banner Jadwal Terpilih dari Halaman Jadwal Publik --}}
+        @if(request('lapangan_id') && request('jam_mulai') && request('jam_selesai'))
+        @php
+            $preLapangan = $lapangans->firstWhere('id', request('lapangan_id'));
+            $preTanggal  = request('tanggal', date('Y-m-d'));
+            $preJamMulai = request('jam_mulai');
+            $preJamSelesai = request('jam_selesai');
+            $preIsWeekend = \Carbon\Carbon::parse($preTanggal)->isWeekend();
+            $preHarga = $preIsWeekend ? $preLapangan?->harga_weekend : $preLapangan?->harga_weekday;
+            $preDurasi = ceil(\Carbon\Carbon::parse($preJamMulai)->diffInMinutes(\Carbon\Carbon::parse($preJamSelesai)) / 60);
+            $preTotalHarga = $preDurasi * ($preHarga ?? 0);
+        @endphp
+        @if($preLapangan)
+        <div id="jadwalPreSelectedBanner" class="mb-3" style="
+            background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+            border: 1.5px solid #86efac;
+            border-radius: 16px;
+            padding: 14px 18px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px -4px rgba(16,185,129,.15);
+            animation: slideDownBanner .35s cubic-bezier(.16,1,.3,1) both;
+        ">
+            {{-- Decorative glow --}}
+            <div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(16,185,129,.2) 0%,transparent 70%);border-radius:50%;pointer-events:none;"></div>
+
+            <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                <div class="d-flex align-items-center gap-3">
+                    {{-- Icon --}}
+                    <div style="width:44px;height:44px;background:linear-gradient(135deg,#10b981,#059669);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(16,185,129,.35);">
+                        <i class="bi bi-calendar2-check text-white fs-5"></i>
+                    </div>
+                    {{-- Info --}}
+                    <div>
+                        <div style="font-size:.72rem;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;">
+                            <i class="bi bi-check-circle-fill me-1"></i>Jadwal Anda Telah Dipilih
+                        </div>
+                        <div style="font-size:.95rem;font-weight:800;color:#065f46;letter-spacing:-.3px;">
+                            {{ $preLapangan->nama_lapangan }}
+                            <span style="font-weight:500;color:#047857;margin:0 4px;">·</span>
+                            {{ \Carbon\Carbon::parse($preTanggal)->translatedFormat('d M Y') }}
+                            <span style="font-weight:500;color:#047857;margin:0 4px;">·</span>
+                            {{ $preJamMulai }} – {{ $preJamSelesai }}
+                        </div>
+                    </div>
+                </div>
+                {{-- Harga estimasi --}}
+                <div class="text-end" style="flex-shrink:0;">
+                    <div style="font-size:.7rem;color:#6b7280;font-weight:600;">Estimasi Harga</div>
+                    <div style="font-size:1.1rem;font-weight:800;color:#059669;">
+                        Rp {{ number_format($preTotalHarga, 0, ',', '.') }}
+                    </div>
+                    <div style="font-size:.68rem;color:#6b7280;">{{ $preDurasi }} jam × Rp {{ number_format($preHarga, 0, ',', '.') }}/jam</div>
+                </div>
+            </div>
+
+            {{-- Tooltip hint --}}
+            <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #a7f3d0;font-size:.73rem;color:#047857;display:flex;align-items:center;gap:6px;">
+                <i class="bi bi-info-circle"></i>
+                Data lapangan, tanggal, dan jam telah diisi otomatis. Anda dapat mengubahnya di form di bawah ini sebelum melanjutkan.
+            </div>
+        </div>
+        @endif
+        @endif
+        <style>
+        @keyframes slideDownBanner {
+            from { opacity:0; transform: translateY(-10px); }
+            to   { opacity:1; transform: translateY(0); }
+        }
+        </style>
+
         <div class="booking-dashboard">
             
             {{-- KOLOM KIRI: Form Parameter & Addons --}}
@@ -1487,18 +1558,43 @@ function disablePastHours() {
     
     const isToday = (dateVal === todayStr);
     const isPast = (dateVal < todayStr);
-    const currentHour = today.getHours();
+    const currentHour = today.getMinutes() > 0 ? today.getHours() + 1 : today.getHours();
 
     document.querySelectorAll('select[name="jam_mulai"] option, select[name="jam_selesai"] option').forEach(opt => {
         if (!opt.value) return;
         const optHour = parseInt(opt.value.split(':')[0]);
-        if (isPast || (isToday && optHour <= currentHour)) {
+        if (isPast || (isToday && optHour < currentHour)) {
             opt.disabled = true;
             if (opt.selected) {
                 opt.parentElement.value = '';
             }
         } else {
             opt.disabled = false;
+        }
+    });
+}
+
+// Nonaktifkan opsi jam yang sudah dibooking oleh orang lain
+function disableBookedOptions() {
+    const selectedCourtId = document.getElementById('filter_lapangan_create').value;
+    const tanggalInput = document.querySelector('input[name="tanggal"]');
+    if (!tanggalInput || !window.occupiedJadwals) return;
+
+    document.querySelectorAll('select[name="jam_mulai"] option, select[name="jam_selesai"] option').forEach(opt => {
+        if (!opt.value) return;
+        if (opt.disabled) return;
+        const optEnd = opt.value === '23:00' ? '23:59' : String(parseInt(opt.value.split(':')[0]) + 1).padStart(2, '0') + ':00';
+        const isOccupied = window.occupiedJadwals.some(j => {
+            if (selectedCourtId && j.lapangan_id != selectedCourtId) return false;
+            const jStart = j.jam_mulai.split(':').slice(0, 2).join(':');
+            const jEnd = j.jam_selesai.split(':').slice(0, 2).join(':');
+            return isOverlap(jStart, jEnd, opt.value, optEnd);
+        });
+        if (isOccupied) {
+            opt.disabled = true;
+            if (opt.selected) {
+                opt.parentElement.value = '';
+            }
         }
     });
 }
@@ -2056,7 +2152,7 @@ function updateFasilitasAvailability() {
 // Fetch occupied schedules via AJAX
 let pollIntervalId = null;
 
-function fetchOccupiedSchedules(isSilent = false) {
+function fetchOccupiedSchedules(isSilent = false, onLoaded = null) {
     const tgl = document.getElementById('filter_tanggal_create').value;
 
     if (!tgl) return;
@@ -2085,6 +2181,13 @@ function fetchOccupiedSchedules(isSilent = false) {
 
             // Render/update timeline jam
             renderTimeline();
+
+            // Nonaktifkan opsi jam yang sudah dibooking
+            disableBookedOptions();
+
+            if (typeof onLoaded === 'function') {
+                onLoaded();
+            }
         }
     })
     .catch(err => console.error("Gagal mengambil jadwal terisi:", err));
@@ -2238,15 +2341,16 @@ window.addEventListener('DOMContentLoaded', function() {
     updateFasilitasAvailability();
     hitungTotal();
     startPollingCreate();
-    
-    // Auto sync from checkbox selections on load
+
+    // ── Initial fetch: always load occupied schedules first ──
+    // Jika ada pre-selected court (dari jadwal page), selectCourt()
+    // akan dipanggil setelah data siap via callback onLoaded
     const checkedRadio = document.querySelector('input[name="lapangan_id"]:checked');
-    if (checkedRadio) {
-        selectCourt(checkedRadio.value);
-    } else {
-        // Initial fetch to load the grid
-        fetchOccupiedSchedules();
-    }
+    fetchOccupiedSchedules(false, function() {
+        if (checkedRadio) {
+            selectCourt(checkedRadio.value);
+        }
+    });
 
     // ── Handle Toggle collapseVoucherList on Booking Page ──
     const collapseVoucherList = document.getElementById('collapseVoucherList');

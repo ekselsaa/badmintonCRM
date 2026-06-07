@@ -177,24 +177,21 @@
             justify-content: center;
         }
         .hero-stat-pill {
-            display: flex; align-items: center; gap: .75rem;
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.7) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            backdrop-filter: blur(12px) saturate(140%);
-            -webkit-backdrop-filter: blur(12px) saturate(140%);
-            border-radius: 50px; padding: .65rem 1.5rem;
-            color: rgba(255, 255, 255, 0.95); font-size: .88rem; font-weight: 600;
-            text-decoration: none; transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            display: flex; align-items: center; gap: .6rem;
+            background: rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.1);
+            backdrop-filter: blur(8px);
+            border-radius: 50px; padding: .55rem 1.25rem;
+            color: #fff; font-size: .8rem; font-weight: 600;
+            text-decoration: none; transition: all .2s;
         }
         a.hero-stat-pill:hover {
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.85) 100%);
-            border-color: var(--sky);
-            transform: translateY(-3px) scale(1.02);
+            background: rgba(255,255,255,.16);
+            border-color: rgba(255,255,255,.25);
+            transform: translateY(-2px);
             color: #fff;
-            box-shadow: 0 12px 28px rgba(14, 165, 233, 0.25);
         }
-        .hero-stat-pill .num { font-size: 1.15rem; font-weight: 800; color: var(--sky); text-shadow: 0 0 8px rgba(14, 165, 233, 0.4); }
+        .hero-stat-pill .num { font-size: 1.05rem; font-weight: 800; color: var(--sky); }
 
         @keyframes fadeUp   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
         @keyframes fadeDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:none; } }
@@ -664,7 +661,9 @@
             <a class="nav-link-custom" href="#keunggulan">Keunggulan</a>
             <a class="nav-link-custom" href="#lapangan">Lapangan</a>
             <a class="nav-link-custom" href="#kelengkapan">Kelengkapan</a>
+            @if($testimonis->isNotEmpty())
             <a class="nav-link-custom" href="#testimoni">Testimoni</a>
+            @endif
             <a class="nav-link-custom" href="#lokasi">Lokasi</a>
         </div>
 
@@ -735,19 +734,17 @@
                     {{-- Stats pills --}}
                     <div class="hero-stats justify-content-center">
                         <div class="hero-stat-pill">
-                            <i class="bi bi-clock-fill" style="color: var(--sky); font-size: 1.05rem; filter: drop-shadow(0 0 5px rgba(14, 165, 233, 0.45));"></i>
                             <span class="num">07:00</span>
                             <span style="color:rgba(255,255,255,.5)">–</span>
                             <span class="num">24:00</span>
                             <span>Jam Buka</span>
                         </div>
                         <a href="#lapangan" class="hero-stat-pill">
-                            <i class="bi bi-grid-1x2-fill" style="color: var(--sky); font-size: 1.05rem; filter: drop-shadow(0 0 5px rgba(14, 165, 233, 0.45));"></i>
                             <span class="num">{{ $lapangans->count() }}</span>
                             <span>Lapangan</span>
                         </a>
                         <div class="hero-stat-pill">
-                            <i class="bi bi-shield-fill-check" style="color: var(--emerald); font-size: 1.15rem; filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.45));"></i>
+                            <i class="bi bi-shield-check text-success"></i>
                             <span>Anti Double Booking</span>
                         </div>
                     </div>
@@ -1010,6 +1007,7 @@
 </section>
 
 
+@if($testimonis->isNotEmpty())
 {{-- ══ TESTIMONI ══ --}}
 <section id="testimoni" style="background:var(--s50);">
     <div class="container">
@@ -1074,6 +1072,7 @@
         <div class="d-flex justify-content-center gap-2 mt-4" id="testiDots"></div>
     </div>
 </section>
+@endif
 
 
 {{-- ══ LOKASI ══ --}}

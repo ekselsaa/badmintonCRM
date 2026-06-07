@@ -628,6 +628,44 @@ class AdminController extends Controller
         }
     }
 
+    /**
+     * Menghapus data pelanggan offline / walk-in.
+     * Menghapus semua booking offline yang terasosiasi dengan nama & no hp tersebut.
+     */
+    public function pelangganDestroyOffline(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string',
+            'nomor_hp' => 'nullable|string',
+        ]);
+
+        $name = $request->name;
+        $nomor_hp = $request->nomor_hp;
+
+        DB::transaction(function () use ($name, $nomor_hp) {
+            $query = Booking::where('is_offline', true)
+                ->where('nama_pemesan_offline', $name);
+
+            if ($nomor_hp && $nomor_hp !== '-') {
+                $query->where('no_hp_offline', $nomor_hp);
+            } else {
+                $query->where(function($q) {
+                    $q->whereNull('no_hp_offline')
+                      ->orWhere('no_hp_offline', '-')
+                      ->orWhere('no_hp_offline', '');
+                });
+            }
+
+            $bookings = $query->get();
+
+            foreach ($bookings as $booking) {
+                $booking->delete(); // Memicu deleting event di model Booking
+            }
+        });
+
+        return back()->with('success', "Seluruh data booking untuk pelanggan offline '{$name}' berhasil dihapus dari sistem.");
+    }
+
     // ─── Laporan ──────────────────────────────────────────────────
     /**
      * Menampilkan laporan harian dan bulanan.

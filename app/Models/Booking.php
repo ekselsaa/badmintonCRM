@@ -80,6 +80,18 @@ class Booking extends Model
             if (in_array($booking->status, ['dipesan', 'selesai'])) {
                 $booking->adjustFasilitasStock('increment');
             }
+
+            // Reset status jadwal ke 'tersedia' jika tidak ada booking aktif lain untuk jadwal ini
+            if ($booking->jadwal_id) {
+                $otherBookings = static::where('jadwal_id', $booking->jadwal_id)
+                    ->where('id', '!=', $booking->id)
+                    ->whereIn('status', ['pending', 'dikonfirmasi', 'dipesan'])
+                    ->exists();
+
+                if (!$otherBookings) {
+                    Jadwal::where('id', $booking->jadwal_id)->update(['status' => 'tersedia']);
+                }
+            }
         });
     }
 
@@ -192,8 +204,15 @@ class Booking extends Model
                     $q->where('tanggal', '<', $todayStr)
                       ->orWhere(function ($q2) use ($todayStr, $timeStr) {
                           $q2->where('tanggal', '=', $todayStr)
-                             ->where('jam_selesai', '<=', $timeStr)
-                             ->where('jam_selesai', '!=', '24:00:00');
+                             ->where(function ($q3) use ($timeStr) {
+                                 $q3->where('jam_selesai', '<=', $timeStr)
+                                    ->where('jam_selesai', '!=', '24:00:00');
+                             });
+                      })
+                      ->orWhere(function ($q2) use ($todayStr, $timeStr) {
+                          $q2->where('tanggal', '=', $todayStr)
+                             ->where('jam_selesai', '=', '24:00:00')
+                             ->whereRaw("? >= '23:59:59'", [$timeStr]);
                       });
                 })
                 ->update(['status' => 'selesai']);

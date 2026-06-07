@@ -153,16 +153,24 @@
                                         {{ $p->created_at instanceof \Carbon\Carbon ? $p->created_at->format('d/m/Y') : \Carbon\Carbon::parse($p->created_at)->format('d/m/Y') }}
                                     </small>
                                 </td>
-                                <td class="text-end">
-                                    @if(isset($p->is_offline) && $p->is_offline)
-                                        <span class="badge bg-secondary py-1 px-2.5" style="font-size: 0.75rem; border-radius: 20px;">Pelanggan Offline</span>
-                                    @else
-                                        <a href="{{ route('admin.crm.pelanggan.detail', $p->id) }}"
-                                           class="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-0.5" style="font-size: 0.75rem;">
-                                            <i class="bi bi-eye me-1"></i>Detail
-                                        </a>
-                                    @endif
-                                </td>
+                                 <td class="text-end">
+                                     @if(isset($p->is_offline) && $p->is_offline)
+                                         <form action="{{ route('admin.crm.pelanggan.destroy-offline') }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus semua data booking untuk pelanggan offline ini?')">
+                                             @csrf
+                                             @method('DELETE')
+                                             <input type="hidden" name="name" value="{{ $p->name }}">
+                                             <input type="hidden" name="nomor_hp" value="{{ $p->nomor_hp }}">
+                                             <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-2.5 py-0.5" style="font-size: 0.75rem;">
+                                                 <i class="bi bi-trash me-1"></i>Hapus
+                                             </button>
+                                         </form>
+                                     @else
+                                         <a href="{{ route('admin.crm.pelanggan.detail', $p->id) }}"
+                                            class="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-0.5" style="font-size: 0.75rem;">
+                                             <i class="bi bi-eye me-1"></i>Detail
+                                         </a>
+                                     @endif
+                                 </td>
                             </tr>
                             @empty
                             <tr><td colspan="9" class="text-center text-muted py-4">Belum ada pelanggan terdaftar.</td></tr>

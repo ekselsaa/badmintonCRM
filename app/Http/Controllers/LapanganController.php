@@ -105,7 +105,11 @@ class LapanganController extends Controller
     /** Daftar jadwal untuk semua lapangan */
     public function jadwalIndex()
     {
-        $jadwals   = Jadwal::with('lapangan')->orderBy('tanggal')->orderBy('jam_mulai')->paginate(15);
+        $jadwals   = Jadwal::with('lapangan')
+            ->where('status', 'ditutup')
+            ->orderBy('tanggal', 'desc')
+            ->orderBy('jam_mulai', 'asc')
+            ->paginate(15);
         $lapangans = Lapangan::where('status', 'aktif')->get();
         $liburs    = HariLibur::with('lapangan')->orderBy('tanggal', 'desc')->get();
         $fasilitas_list = \App\Models\Fasilitas::where('is_active', true)->get();
@@ -119,22 +123,37 @@ class LapanganController extends Controller
             'lapangan_id' => 'required|exists:lapangan,id',
             'tanggal'     => 'required|date|after_or_equal:today',
             'jam_mulai'   => 'required',
-            'jam_selesai' => 'required|after:jam_mulai',
+            'jam_selesai' => 'required',
             'keterangan'  => 'nullable|string|max:255',
         ], [
             'tanggal.after_or_equal' => 'Tanggal tidak boleh di masa lalu.',
-            'jam_selesai.after'      => 'Jam selesai harus setelah jam mulai.',
         ]);
 
-        // Cek apakah jadwal bentrok (lapangan + tanggal + jam yang bertabrakan)
+        $mulai = Carbon::parse($request->jam_mulai);
+        $selesai = Carbon::parse($request->jam_selesai);
+
+        $mulaiMins = $mulai->hour * 60 + $mulai->minute;
+        $selesaiMins = $selesai->hour * 60 + $selesai->minute;
+
+        if ($selesaiMins === 0) {
+            $selesaiMins = 24 * 60; // Midnight 24:00
+        }
+
+        // Jam operasional: 07:00 (420 menit) - 24:00 (1440 menit)
+        if ($mulaiMins < 420 || $selesaiMins > 1440 || $mulaiMins >= $selesaiMins) {
+            return back()->withInput()->with('error', 'Gagal memblokir! Waktu harus berada di dalam jam operasional GOR (07:00 - 24:00) dan jam selesai harus setelah jam mulai.');
+        }
+
+        // Cek apakah jadwal bentrok (ada booking aktif/pending)
         $exists = Jadwal::where('lapangan_id', $request->lapangan_id)
             ->where('tanggal', $request->tanggal)
             ->where('jam_mulai', '<', $request->jam_selesai)
             ->where('jam_selesai', '>', $request->jam_mulai)
+            ->whereIn('status', ['pending', 'dipesan'])
             ->exists();
 
         if ($exists) {
-            return back()->with('error', 'Gagal memblokir! Sudah ada slot atau booking di waktu tersebut.');
+            return back()->with('error', 'Gagal memblokir! Sudah ada booking aktif/pending di waktu tersebut.');
         }
 
         // Cek jika waktu yang diinput sudah terlewat (di masa lalu)
@@ -142,6 +161,14 @@ class LapanganController extends Controller
         if ($startDateTime->lt(Carbon::now()->subMinutes(2))) {
             return back()->withInput()->with('error', 'Gagal memblokir! Waktu tidak boleh di masa lalu.');
         }
+
+        // Hapus slot tersedia yang overlap agar tidak terjadi duplikasi/constraint violation
+        Jadwal::where('lapangan_id', $request->lapangan_id)
+            ->where('tanggal', $request->tanggal)
+            ->where('jam_mulai', '<', $request->jam_selesai)
+            ->where('jam_selesai', '>', $request->jam_mulai)
+            ->where('status', 'tersedia')
+            ->delete();
 
         Jadwal::updateOrCreate(
             [
@@ -208,10 +235,18 @@ class LapanganController extends Controller
             'total_harga.required'          => 'Total harga wajib diisi.',
         ]);
 
-        // Validasi jam operasional GOR (07:00 - 24:00 / 23:59)
-        $mulaiHour = (int) explode(':', $request->jam_mulai)[0];
-        $selesaiHour = (int) explode(':', $request->jam_selesai)[0];
-        if ($mulaiHour < 7 || $selesaiHour < 8 || $mulaiHour > 23 || $selesaiHour > 23) {
+        $mulai = Carbon::parse($request->jam_mulai);
+        $selesai = Carbon::parse($request->jam_selesai);
+
+        $mulaiMins = $mulai->hour * 60 + $mulai->minute;
+        $selesaiMins = $selesai->hour * 60 + $selesai->minute;
+
+        if ($selesaiMins === 0) {
+            $selesaiMins = 24 * 60; // Midnight 24:00
+        }
+
+        // Jam operasional: 07:00 (420 menit) - 24:00 (1440 menit)
+        if ($mulaiMins < 420 || $selesaiMins > 1440 || $mulaiMins >= $selesaiMins) {
             return back()->withInput()->with('error', 'Pemesanan gagal. Jam operasional GOR adalah 07:00 - 24:00.');
         }
 
@@ -221,11 +256,12 @@ class LapanganController extends Controller
             return back()->withInput()->with('error', 'Gagal mencatat booking offline: Waktu tidak boleh di masa lalu.');
         }
 
-        // Cek apakah jadwal sudah terpakai
+        // Cek apakah jadwal sudah terpakai (booking/pending/tutup)
         $exists = Jadwal::where('lapangan_id', $request->lapangan_id)
             ->where('tanggal', $request->tanggal)
             ->where('jam_mulai', '<', $request->jam_selesai)
             ->where('jam_selesai', '>', $request->jam_mulai)
+            ->whereIn('status', ['pending', 'dipesan', 'ditutup'])
             ->exists();
 
         if ($exists) {
@@ -233,6 +269,14 @@ class LapanganController extends Controller
                 ->withInput()
                 ->with('error', 'Gagal! Slot waktu tersebut sudah terisi atau diblokir.');
         }
+
+        // Hapus slot tersedia yang overlap agar tidak terjadi duplikasi/constraint violation
+        Jadwal::where('lapangan_id', $request->lapangan_id)
+            ->where('tanggal', $request->tanggal)
+            ->where('jam_mulai', '<', $request->jam_selesai)
+            ->where('jam_selesai', '>', $request->jam_mulai)
+            ->where('status', 'tersedia')
+            ->delete();
 
         try {
             DB::transaction(function () use ($request) {

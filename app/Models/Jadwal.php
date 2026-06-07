@@ -25,26 +25,30 @@ class Jadwal extends Model
     }
 
     /**
-     * Cek apakah slot jadwal tertentu tercover oleh paket keanggotaan (member) aktif.
+     * @todo STUB - Belum diimplementasikan. Selalu return false.
+     * Fitur ini untuk memeriksa apakah slot di-cover oleh paket member aktif.
+     * Pastikan panggilan ke method ini tidak digunakan dalam logika bisnis kritis.
      */
     public static function isSlotCoveredByActiveMember($tanggal, $jamMulai, $jamSelesai)
     {
-        return false;
+        return false; // @stub
     }
 
     /**
-     * Generate slot virtual untuk member aktif pada tanggal tertentu.
+     * @todo STUB - Belum diimplementasikan. Selalu return collect() kosong.
+     * Fitur ini untuk generate slot virtual untuk member aktif pada tanggal tertentu.
      */
     public static function getMemberSlotsForDate($tanggal)
     {
-        return collect();
+        return collect(); // @stub
     }
 
     /**
-     * Gabungkan jadwal riil dengan slot virtual member aktif.
+     * @todo STUB - Belum diimplementasikan. Hanya return $jadwals apa adanya.
+     * Fitur ini untuk menggabungkan jadwal riil dengan slot virtual member aktif.
      */
     public static function mergeWithVirtualMemberSlots($jadwals, $tanggal)
     {
-        return $jadwals;
+        return $jadwals; // @stub
     }
 }

@@ -168,6 +168,7 @@ class JadwalPublicController extends Controller
                 'status'      => $status,
                 'keterangan'  => $keterangan,
                 'lapangan_id' => $lapangan->id,
+                'lapangan'    => $lapangan,
                 'harga'       => $isWeekend ? $lapangan->harga_weekend : $lapangan->harga_weekday,
             ]);
         }

@@ -192,6 +192,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::get('/pelanggan/{id}', [AdminController::class, 'pelangganDetail'])->name('pelanggan.detail');
         Route::put('/pelanggan/{id}/toggle-member', [AdminController::class, 'pelangganToggleMember'])->name('pelanggan.toggle-member');
         Route::post('/pelanggan/{id}/adjust-points', [AdminController::class, 'pelangganAdjustPoints'])->name('pelanggan.adjust-points');
+        Route::delete('/pelanggan/offline', [AdminController::class, 'pelangganDestroyOffline'])->name('pelanggan.destroy-offline');
     });
 
     // ── Laporan ─────────────────────────────────────────────────
