@@ -1089,7 +1089,7 @@ class AdminController extends Controller
                         $dates[] = $currentDate->format('Y-m-d');
                     }
 
-                    foreach ($dates as $date) {
+                    foreach ($dates as $index => $date) {
                         $jadwal = \App\Models\Jadwal::updateOrCreate(
                             [
                                 'lapangan_id' => $payment->lapangan_id,
@@ -1103,18 +1103,21 @@ class AdminController extends Controller
                             ]
                         );
 
+                        // Masukkan nominal bayar membership pada booking sesi pertama agar tercatat di laporan transaksi
+                        $hargaBooking = ($index === 0) ? $payment->jumlah_bayar : 0;
+
                         $booking = \App\Models\Booking::create([
                             'user_id'         => $payment->user_id,
                             'jadwal_id'       => $jadwal->id,
                             'lapangan_id'     => $payment->lapangan_id,
                             'tanggal_booking' => $date,
-                            'total_harga'     => 0,
+                            'total_harga'     => $hargaBooking,
                             'status'          => 'dipesan',
                             'catatan'         => 'Sesi Rutin Member (Paket ' . ucfirst($payment->paket) . ')',
                         ]);
 
                         $booking->pembayaran()->create([
-                            'jumlah_bayar'      => 0,
+                            'jumlah_bayar'      => $hargaBooking,
                             'metode_pembayaran' => $payment->metode_pembayaran,
                             'status_verifikasi' => 'diverifikasi',
                             'catatan_admin'     => 'Auto-generated dari verifikasi membership #' . $payment->id,

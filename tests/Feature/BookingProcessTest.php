@@ -327,7 +327,8 @@ class BookingProcessTest extends TestCase
             $this->assertNotNull($booking, "Booking not found for date {$formattedDate}");
             $this->assertEquals($this->lapangan->id, $booking->lapangan_id);
             $this->assertEquals('dipesan', $booking->status);
-            $this->assertEquals(0, $booking->total_harga);
+            $expectedHarga = ($i === 0) ? 500000 : 0;
+            $this->assertEquals($expectedHarga, $booking->total_harga);
 
             // Assert corresponding Jadwal exists
             $jadwal = Jadwal::where('lapangan_id', $this->lapangan->id)
