@@ -35,7 +35,6 @@ class JadwalPublicController extends Controller
             ->whereDate('tanggal', $tanggal)
             ->whereIn('status', ['dipesan', 'pending', 'ditutup'])
             ->get();
-        $booked_jadwals = Jadwal::mergeWithVirtualMemberSlots($booked_jadwals, $tanggal);
 
         $lapangansQuery = Lapangan::orderBy('status', 'asc')->orderBy('nama_lapangan', 'asc');
         if ($lapangan_id) {
@@ -144,13 +143,11 @@ class JadwalPublicController extends Controller
 
         $isWeekend = \Carbon\Carbon::parse($tanggal)->isWeekend();
 
-        // Ambil booking yang sudah ada (dipesan, pending, ditutup)
         $booked_jadwals = Jadwal::with('booking.user')
             ->where('lapangan_id', $lapanganId)
             ->whereDate('tanggal', $tanggal)
             ->whereIn('status', ['dipesan', 'pending', 'ditutup'])
             ->get();
-        $booked_jadwals = Jadwal::mergeWithVirtualMemberSlots($booked_jadwals, $tanggal);
 
         $hariLiburs = \App\Models\HariLibur::where('tanggal', $tanggal)->get();
         $libur = $hariLiburs->first(function ($hl) use ($lapangan) {

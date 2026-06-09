@@ -33,7 +33,9 @@ class AdminController extends Controller
         $totalPelanggan        = $totalPelangganOnline + $totalPelangganOffline;
         $totalLapangan   = Lapangan::count();
         $totalBooking    = Booking::count();
-        $pendingVerif    = Pembayaran::where('status_verifikasi', 'menunggu')->count();
+        $pendingVerifBookings   = Pembayaran::where('status_verifikasi', 'menunggu')->count();
+        $pendingVerifMembership = \App\Models\MembershipPayment::where('status_verifikasi', 'menunggu')->count();
+        $pendingVerif           = $pendingVerifBookings + $pendingVerifMembership;
 
         // Kontekstual: hari ini & bulan ini
         $bookingHariIni  = Booking::whereDate('tanggal_booking', today())->count();
@@ -139,6 +141,7 @@ class AdminController extends Controller
 
         return view('admin.dashboard', compact(
             'totalPelanggan', 'totalPelangganOnline', 'totalPelangganOffline', 'totalLapangan', 'totalBooking', 'pendingVerif',
+            'pendingVerifBookings', 'pendingVerifMembership',
             'bookingHariIni', 'bookingBulanIni', 'pendapatanBulan', 'pelangganBaru',
             'totalFasilitas', 'fasilitasHabis', 'fasilitasList',
             'bookingTerbaru', 'pembayaranPending',

@@ -268,7 +268,7 @@
                 </div>
 
                 <div class="col-6 col-md-4">
-                    <a href="{{ route('admin.pembayaran.index') }}" class="text-decoration-none d-block h-100">
+                    <a href="{{ $pendingVerifMembership > 0 && $pendingVerifBookings == 0 ? route('admin.pembayaran-membership.index') : route('admin.pembayaran.index') }}" class="text-decoration-none d-block h-100">
                         <div class="dash-stat red">
                             <div class="d-flex align-items-center justify-content-between mb-2">
                                 <div class="stat-icon-wrap" style="background:#fee2e2;">
@@ -284,6 +284,16 @@
                             </div>
                             <div class="stat-num" style="color:{{ $pendingVerif > 0 ? '#dc2626' : '#1e293b' }};">{{ $pendingVerif }}</div>
                             <div class="stat-sub">Perlu Diverifikasi</div>
+                            @if($pendingVerif > 0)
+                                <div style="font-size: 0.68rem; margin-top: 6px; display: flex; gap: 8px; font-weight: 600;">
+                                    @if($pendingVerifBookings > 0)
+                                        <span class="text-danger" title="{{ $pendingVerifBookings }} Booking pending"><i class="bi bi-calendar-event me-0.5"></i> {{ $pendingVerifBookings }} Booking</span>
+                                    @endif
+                                    @if($pendingVerifMembership > 0)
+                                        <span class="text-warning" title="{{ $pendingVerifMembership }} Member pending"><i class="bi bi-star-fill me-0.5"></i> {{ $pendingVerifMembership }} Member</span>
+                                    @endif
+                                </div>
+                            @endif
                         </div>
                     </a>
                 </div>

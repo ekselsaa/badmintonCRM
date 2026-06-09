@@ -40,7 +40,6 @@ class BookingController extends Controller
             ->whereIn('status', ['pending', 'dipesan', 'ditutup'])
             ->orderBy('jam_mulai')
             ->get();
-        $jadwals = Jadwal::mergeWithVirtualMemberSlots($jadwals, $tanggal);
 
         $liburs = HariLibur::where('tanggal', $tanggal)->get();
         $fasilitas_list = \App\Models\Fasilitas::where('is_active', true)->get();
@@ -105,7 +104,6 @@ class BookingController extends Controller
 
         // Ambil jadwal dasar
         $booked_jadwals = $jadwalsQuery->orderBy('jam_mulai')->get();
-        $booked_jadwals = Jadwal::mergeWithVirtualMemberSlots($booked_jadwals, $tanggal);
 
         if ($request->ajax()) {
             return response()->json([
@@ -218,7 +216,7 @@ class BookingController extends Controller
                     ->where('jam_selesai', '>', $request->jam_mulai)
                     ->lockForUpdate()->exists();
 
-                if ($overlap || Jadwal::isSlotCoveredByActiveMember($request->tanggal, $request->jam_mulai, $request->jam_selesai)) {
+                if ($overlap) {
                     throw new \Exception('Jadwal bentrok! Lapangan sudah terpesan oleh Member atau sedang ditutup.');
                 }
 
@@ -598,7 +596,6 @@ class BookingController extends Controller
         }
 
         $jadwals = $jadwalsQuery->orderBy('jam_mulai')->get();
-        $jadwals = Jadwal::mergeWithVirtualMemberSlots($jadwals, $tanggal);
 
         if ($request->ajax()) {
             return response()->json([
@@ -670,7 +667,7 @@ class BookingController extends Controller
                     ->where('id', '!=', $booking->jadwal_id)
                     ->lockForUpdate()->exists();
 
-                if ($overlap || Jadwal::isSlotCoveredByActiveMember($request->tanggal, $request->jam_mulai, $request->jam_selesai)) {
+                if ($overlap) {
                     throw new \Exception('Jadwal bentrok! Lapangan sudah terpesan oleh Member atau sedang ditutup.');
                 }
 

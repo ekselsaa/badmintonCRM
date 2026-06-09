@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ $lapangan->nama_lapangan }} - Jadwal - Anbiyaa Sport</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%230ea5e9%22 stroke-width=%222.8%22><path d=%22M9 16c0 1.66 1.34 3 3 3s3-1.34 3-3%22 fill=%22%230ea5e9%22/></svg>">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%230ea5e9%22 stroke-width=%222.8%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M9 16c0 1.66 1.34 3 3 3s3-1.34 3-3%22 fill=%22%230ea5e9%22 stroke=%22%230ea5e9%22 stroke-width=%222.8%22/><path d=%22M8 14.5h8%22 stroke=%22%232563eb%22 stroke-width=%223%22/><path d=%22M7.5 13.5L5 5%22 stroke-width=%222.8%22/><path d=%22M12 13.5V4%22 stroke-width=%222.8%22/><path d=%22M16.5 13.5L19 5%22 stroke-width=%222.8%22/><path d=%22M6 9.5h12%22 stroke-width=%221.8%22 opacity=%220.75%22/></svg>">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -28,12 +28,12 @@ body {
 
 /* ── Topbar ── */
 .top-nav {
-    background: rgba(255,255,255,.88);
+    background: rgba(8, 12, 30, 0.88);
     backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(226,232,240,.8);
-    padding: .6rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: .65rem 0;
     position: sticky; top: 0; z-index: 100;
-    box-shadow: 0 2px 12px rgba(0,0,0,.03);
+    box-shadow: 0 4px 20px rgba(0,0,0,.15);
 }
 
 /* ── Hero Header ── */
@@ -75,8 +75,8 @@ body {
     color: #fff; margin: 0; letter-spacing: -.4px; line-height: 1.2;
 }
 .page-hero .sub {
-    font-size: .75rem; color: rgba(255,255,255,.55);
-    margin: .2rem 0 0; font-weight: 500;
+    font-size: .82rem; color: rgba(255,255,255,.85);
+    margin: .25rem 0 0; font-weight: 600;
 }
 .hero-breadcrumb {
     font-size: .68rem; color: rgba(255,255,255,.4); font-weight: 500;
@@ -126,25 +126,150 @@ body {
     box-shadow: 0 4px 24px -4px rgba(0,0,0,.07);
 }
 .f-pill {
-    font-size: .72rem; font-weight: 600; padding: .25rem .8rem;
-    border-radius: 20px; text-decoration: none; transition: all .18s;
-    white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;
+    font-size: .75rem; font-weight: 700; padding: .4rem 1rem;
+    border-radius: 50px; text-decoration: none; transition: all .25s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
 }
-.f-pill.solid { background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(37,99,235,.3); }
-.f-pill:not(.solid) { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
-.f-pill:not(.solid):hover { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+/* Default Active / Solid style */
+.f-pill.solid {
+    background: linear-gradient(135deg, #2563eb, #0ea5e9);
+    color: #fff !important;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+    border: none;
+}
+.f-pill.solid:hover {
+    transform: translateY(-1.5px);
+    box-shadow: 0 6px 16px rgba(37,99,235,0.45);
+    color: #fff !important;
+}
+
+/* Custom Active Colors for Statuses */
+.f-pill.solid.pill-tersedia {
+    background: linear-gradient(135deg, #10b981, #059669);
+    box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+}
+.f-pill.solid.pill-tersedia:hover {
+    box-shadow: 0 6px 16px rgba(16,185,129,0.45);
+}
+
+.f-pill.solid.pill-pending {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    box-shadow: 0 4px 12px rgba(245,158,11,0.3);
+}
+.f-pill.solid.pill-pending:hover {
+    box-shadow: 0 6px 16px rgba(245,158,11,0.45);
+}
+
+.f-pill.solid.pill-dipesan {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    box-shadow: 0 4px 12px rgba(239,68,68,0.3);
+}
+.f-pill.solid.pill-dipesan:hover {
+    box-shadow: 0 6px 16px rgba(239,68,68,0.45);
+}
+
+.f-pill.solid.pill-ditutup {
+    background: linear-gradient(135deg, #6b7280, #4b5563);
+    box-shadow: 0 4px 12px rgba(107,114,128,0.3);
+}
+.f-pill.solid.pill-ditutup:hover {
+    box-shadow: 0 6px 16px rgba(107,114,128,0.45);
+}
+
+/* Default Inactive style */
+.f-pill:not(.solid) {
+    background: #ffffff;
+    color: #475569;
+    border: 1.5px solid #e2e8f0;
+}
+.f-pill:not(.solid):hover {
+    transform: translateY(-1.5px);
+}
+
+/* Custom Inactive Colors for Statuses */
+.f-pill:not(.solid).pill-semua, .f-pill:not(.solid).pill-hari-ini {
+    background: #eff6ff;
+    color: #2563eb;
+    border-color: #bfdbfe;
+}
+.f-pill:not(.solid).pill-semua:hover, .f-pill:not(.solid).pill-hari-ini:hover {
+    background: #dbeafe;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.15);
+}
+
+.f-pill:not(.solid).pill-tersedia {
+    background: #e6fbf1;
+    color: #047857;
+    border-color: #a7f3d0;
+}
+.f-pill:not(.solid).pill-tersedia:hover {
+    background: #d1fae5;
+    border-color: #34d399;
+    color: #065f46;
+    box-shadow: 0 4px 12px rgba(16,185,129,0.15);
+}
+
+.f-pill:not(.solid).pill-pending {
+    background: #fffbeb;
+    color: #b45309;
+    border-color: #fde68a;
+}
+.f-pill:not(.solid).pill-pending:hover {
+    background: #fef3c7;
+    border-color: #fbbf24;
+    color: #92400e;
+    box-shadow: 0 4px 12px rgba(245,158,11,0.15);
+}
+
+.f-pill:not(.solid).pill-dipesan {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+.f-pill:not(.solid).pill-dipesan:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
+    box-shadow: 0 4px 12px rgba(239,68,68,0.15);
+}
+
+.f-pill:not(.solid).pill-ditutup {
+    background: #f8fafc;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+.f-pill:not(.solid).pill-ditutup:hover {
+    background: #e2e8f0;
+    border-color: #94a3b8;
+    color: #334155;
+    box-shadow: 0 4px 12px rgba(107,114,128,0.15);
+}
+
+.f-pill.solid .dot {
+    background: #ffffff !important;
+}
 
 .fc-custom {
-    border-radius: 10px !important;
+    border-radius: 50px !important;
     font-size: .8rem !important;
-    border-color: #e2e8f0 !important;
-    background: #f8fafc !important;
-    transition: all .18s !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
+    border: 1.5px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    transition: all .25s ease !important;
+    padding-left: 1.1rem !important;
+    padding-right: 1.1rem !important;
+    height: 38px !important;
+    display: inline-flex !important;
+    align-items: center !important;
 }
-.fc-custom:focus {
-    border-color: var(--primary) !important;
+.fc-custom:focus, .fc-custom:hover {
+    border-color: #2563eb !important;
     background: #fff !important;
-    box-shadow: 0 0 0 3px rgba(37,99,235,.1) !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,.15) !important;
 }
 
 /* ── Lapangan block ── */
@@ -174,6 +299,10 @@ body {
     flex: 1; display: flex; flex-direction: column;
     align-items: center; text-align: center; gap: 0;
 }
+.slot-card .s-time-group {
+    margin-top: auto; margin-bottom: auto;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
 .slot-card .s-time {
     font-size: 1.15rem; font-weight: 800; line-height: 1.1; color: #0f172a;
     letter-spacing: -.5px; margin-top: .05rem;
@@ -189,7 +318,7 @@ body {
 }
 .s-btn:hover { opacity: .88; color: #fff; }
 .s-note { font-size: .73rem; color: #334155; font-weight: 600; margin-top: .15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.s-finish { font-size: .68rem; color: #64748b; margin-top: auto; padding-top: .25rem; }
+.s-finish { font-size: .68rem; color: #64748b; padding-top: .25rem; }
 
 /* ── Status variants ── */
 .slot-card.st-tersedia { border-color: #bbf7d0; }
@@ -214,8 +343,16 @@ body {
 .hdr-badge.green { background: rgba(16,185,129,.25); border-color: rgba(16,185,129,.45); color: #6ee7b7; }
 
 /* ── Live dot ── */
-.rt-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); animation: pulse-dot 2s infinite; display: inline-block; }
-@keyframes pulse-dot { 0%,100%{opacity:1}50%{opacity:.3} }
+.rt-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #10b981;
+    display: inline-block; box-shadow: 0 0 0 0 rgba(16,185,129,0.7);
+    animation: live-pulse 2s infinite;
+}
+@keyframes live-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(16,185,129,0.7); }
+    70%  { box-shadow: 0 0 0 5px rgba(16,185,129,0); }
+    100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+}
 @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 .anim { animation: fadeUp .28s ease both; }
 
@@ -244,20 +381,24 @@ body {
 <div class="top-nav">
     <div class="container-fluid px-4 d-flex justify-content-between align-items-center">
         <a href="{{ route('home') }}" class="text-decoration-none d-flex align-items-center gap-2">
-            <i class="bi bi-trophy-fill" style="color:#0ea5e9;font-size:1.1rem"></i>
-            <span class="fw-bold" style="color:#0f172a;font-size:.9rem;letter-spacing:-.3px">Anbiyaa Sport</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" class="brand-icon-svg" style="width: 1.5rem; height: 1.5rem; display: inline-block; vertical-align: middle; filter: drop-shadow(0 0 8px rgba(14, 165, 233, 0.6));">
+                <path d="M9 16c0 1.66 1.34 3 3 3s3-1.34 3-3" fill="#0ea5e9" stroke="#0ea5e9" stroke-width="2.8"/>
+                <path d="M8 14.5h8" stroke="#2563eb" stroke-width="3"/>
+                <path d="M7.5 13.5L5 5" stroke-width="2.8"/>
+                <path d="M12 13.5V4" stroke-width="2.8"/>
+                <path d="M16.5 13.5L19 5" stroke-width="2.8"/>
+                <path d="M6 9.5h12" stroke-width="1.8" opacity="0.75"/>
+            </svg>
+            <span class="fw-bold" style="color:#fff;font-size:1.1rem;letter-spacing:-.4px">Anbiyaa<span style="color:#0ea5e9">Sport</span></span>
         </a>
         <div class="d-flex align-items-center gap-2">
-            <span class="d-flex align-items-center gap-1" style="font-size:.65rem;color:#94a3b8"><span class="rt-dot"></span> Live</span>
-            <a href="{{ route('jadwal.index', ['tanggal'=>$tanggal]) }}" class="btn btn-sm" style="border:1px solid #e2e8f0;color:#475569;font-size:.73rem;border-radius:8px;padding:.28rem .7rem">
-                <i class="bi bi-grid me-1"></i>Semua
-            </a>
+            <a href="{{ route('jadwal.index', ['tanggal'=>$tanggal]) }}" class="btn btn-sm" style="border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.73);font-size:.75rem;border-radius:50px;padding:.33rem .9rem;transition:all 0.2s;background:rgba(255,255,255,0.05)" onmouseover="this.style.color='#fff';this.style.borderColor='rgba(255,255,255,0.4)';this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.color='rgba(255,255,255,0.73)';this.style.borderColor='rgba(255,255,255,0.15)';this.style.background='rgba(255,255,255,0.05)'"><i class="bi bi-grid me-1"></i>Semua</a>
             @auth
-                <a href="{{ route('booking.create', ['lapangan_id'=>$lapangan->id]) }}" class="btn btn-sm text-white" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);font-size:.73rem;border-radius:8px;padding:.28rem .8rem;border:none">
+                <a href="{{ route('booking.create', ['lapangan_id'=>$lapangan->id]) }}" class="btn btn-sm text-white" style="background:linear-gradient(135deg,#2563eb,#0ea5e9);font-size:.75rem;border-radius:50px;padding:.35rem 1.15rem;border:none;font-weight:700;box-shadow:0 4px 12px rgba(37,99,235,0.35);transition:all 0.25s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 16px rgba(37,99,235,0.5)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(37,99,235,0.35)'">
                     <i class="bi bi-calendar-plus me-1"></i>Booking
                 </a>
             @else
-                <a href="{{ route('login') }}" class="btn btn-sm text-white" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);font-size:.73rem;border-radius:8px;padding:.28rem .8rem;border:none">
+                <a href="{{ route('login') }}" class="btn btn-sm text-white" style="background:linear-gradient(135deg,#2563eb,#0ea5e9);font-size:.75rem;border-radius:50px;padding:.35rem 1.15rem;border:none;font-weight:700;box-shadow:0 4px 12px rgba(37,99,235,0.35);transition:all 0.25s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 16px rgba(37,99,235,0.5)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(37,99,235,0.35)'">
                     <i class="bi bi-box-arrow-in-right me-1"></i>Masuk
                 </a>
             @endauth
@@ -325,13 +466,13 @@ body {
                    style="width:auto;min-width:140px">
             @php $today = now()->toDateString(); @endphp
             <a href="{{ route('jadwal.show', ['id'=>$lapangan->id,'tanggal'=>$today]) }}"
-               class="f-pill {{ $tanggal===$today?'solid':'' }}">
+               class="f-pill pill-hari-ini {{ $tanggal===$today?'solid':'' }}">
                 <i class="bi bi-calendar-check" style="font-size:.65rem"></i>Hari Ini
             </a>
-            <a href="{{ route('jadwal.index',['tanggal'=>$tanggal]) }}" class="f-pill">
+            <a href="{{ route('jadwal.index',['tanggal'=>$tanggal]) }}" class="f-pill pill-semua">
                 <i class="bi bi-grid" style="font-size:.65rem"></i>Semua Lapangan
             </a>
-            <button class="f-pill solid" type="submit">
+            <button class="f-pill pill-hari-ini solid" type="submit">
                 <i class="bi bi-search" style="font-size:.65rem"></i>Tampilkan
             </button>
             <div class="ms-auto d-none d-lg-flex flex-wrap align-items-center gap-2">
@@ -376,7 +517,7 @@ body {
             <i class="bi bi-calendar-x fs-4 text-muted"></i>
         </div>
         <p class="text-muted mb-1" style="font-size:.85rem">Tidak ada jadwal untuk tanggal ini.</p>
-        <a href="{{ route('jadwal.show', ['id'=>$lapangan->id]) }}" class="btn btn-sm text-white" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:8px;border:none">Coba Hari Lain</a>
+        <a href="{{ route('jadwal.show', ['id'=>$lapangan->id]) }}" class="btn btn-sm text-white" style="background:linear-gradient(135deg,#2563eb,#0ea5e9);border-radius:50px;border:none;padding:.45rem 1.25rem;font-weight:700;box-shadow:0 4px 12px rgba(37,99,235,0.3);transition:all 0.25s" onmouseover="this.style.transform='translateY(-1.5px)';this.style.boxShadow='0 6px 16px rgba(37,99,235,0.45)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(37,99,235,0.3)'">Coba Hari Lain</a>
     </div>
     @endif
     </div>
@@ -388,9 +529,16 @@ body {
     <div class="container-fluid px-4">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
             <div>
-                <a href="{{ route('home') }}" class="brand-text d-flex align-items-center gap-2 mb-1">
-                    <i class="bi bi-trophy-fill" style="color:#0ea5e9;font-size:1rem"></i>
-                    Anbiyaa<span>Sport</span>
+                <a href="{{ route('home') }}" class="brand-text d-flex align-items-center gap-2 mb-1" style="color:#fff;font-weight:800;font-size:1.05rem;text-decoration:none;letter-spacing:-.3px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" class="brand-icon-svg" style="width: 1.25rem; height: 1.25rem; display: inline-block; vertical-align: middle; filter: drop-shadow(0 0 6px rgba(14, 165, 233, 0.5));">
+                        <path d="M9 16c0 1.66 1.34 3 3 3s3-1.34 3-3" fill="#0ea5e9" stroke="#0ea5e9" stroke-width="2.8"/>
+                        <path d="M8 14.5h8" stroke="#2563eb" stroke-width="3"/>
+                        <path d="M7.5 13.5L5 5" stroke-width="2.8"/>
+                        <path d="M12 13.5V4" stroke-width="2.8"/>
+                        <path d="M16.5 13.5L19 5" stroke-width="2.8"/>
+                        <path d="M6 9.5h12" stroke-width="1.8" opacity="0.75"/>
+                    </svg>
+                    Anbiyaa<span style="color:#0ea5e9">Sport</span>
                 </a>
                 <p style="font-size:.68rem;color:rgba(255,255,255,.35);margin:0">Booking Lapangan Bulutangkis — Makassar</p>
             </div>

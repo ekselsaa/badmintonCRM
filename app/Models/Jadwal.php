@@ -23,32 +23,4 @@ class Jadwal extends Model
         $isWeekend = \Carbon\Carbon::parse($this->tanggal)->isWeekend();
         return $isWeekend ? $this->lapangan->harga_weekend : $this->lapangan->harga_weekday;
     }
-
-    /**
-     * @todo STUB - Belum diimplementasikan. Selalu return false.
-     * Fitur ini untuk memeriksa apakah slot di-cover oleh paket member aktif.
-     * Pastikan panggilan ke method ini tidak digunakan dalam logika bisnis kritis.
-     */
-    public static function isSlotCoveredByActiveMember($tanggal, $jamMulai, $jamSelesai)
-    {
-        return false; // @stub
-    }
-
-    /**
-     * @todo STUB - Belum diimplementasikan. Selalu return collect() kosong.
-     * Fitur ini untuk generate slot virtual untuk member aktif pada tanggal tertentu.
-     */
-    public static function getMemberSlotsForDate($tanggal)
-    {
-        return collect(); // @stub
-    }
-
-    /**
-     * @todo STUB - Belum diimplementasikan. Hanya return $jadwals apa adanya.
-     * Fitur ini untuk menggabungkan jadwal riil dengan slot virtual member aktif.
-     */
-    public static function mergeWithVirtualMemberSlots($jadwals, $tanggal)
-    {
-        return $jadwals; // @stub
-    }
 }
