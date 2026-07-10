@@ -15,12 +15,12 @@
             <div class="table-responsive p-3">
                 <table class="table table-hover align-middle mb-0" style="border-collapse: separate; border-spacing: 0 8px;">
                     <thead style="background-color: #f8fafc; color: #64748b; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">
-                        <tr>
-                            <th class="border-0 rounded-start px-4 py-3">Fasilitas</th>
-                            <th class="border-0 py-3">Harga</th>
-                            <th class="border-0 py-3 text-center">Stok Real-Time</th>
-                            <th class="border-0 py-3 text-center">Status</th>
-                            <th class="border-0 rounded-end px-4 py-3 text-end">Aksi</th>
+                        <tr class="align-middle">
+                            <th class="border-0 rounded-start px-4 py-3 text-nowrap">Fasilitas</th>
+                            <th class="border-0 py-3 text-nowrap">Harga</th>
+                            <th class="border-0 py-3 text-center text-nowrap">Stok Real-Time</th>
+                            <th class="border-0 py-3 text-center text-nowrap">Status</th>
+                            <th class="border-0 rounded-end px-4 py-3 text-end text-nowrap">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -37,7 +37,7 @@
                                         </div>
                                     </div>
                                 </td>
-                                <td class="border-0 py-3 fw-semibold text-dark">
+                                <td class="border-0 py-3 fw-semibold text-dark text-nowrap">
                                     Rp {{ number_format($f->harga, 0, ',', '.') }}
                                 </td>
                                 <td class="border-0 py-3 text-center">
@@ -58,16 +58,18 @@
                                         <span class="badge bg-secondary" style="font-weight: 500; padding: 6px 12px;">Nonaktif</span>
                                     @endif
                                 </td>
-                                <td class="border-0 px-4 py-3 rounded-end text-end">
-                                    <button class="btn btn-sm btn-outline-primary rounded-circle" style="width: 32px; height: 32px; padding: 0;" data-bs-toggle="modal" data-bs-target="#editModal{{ $f->id }}" title="Edit">
-                                        <i class="bi bi-pencil-fill"></i>
-                                    </button>
-                                    <form action="{{ route('admin.fasilitas.destroy', $f->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus fasilitas ini?');">
-                                        @csrf @method('DELETE')
-                                        <button class="btn btn-sm btn-outline-danger rounded-circle ms-1" style="width: 32px; height: 32px; padding: 0;" title="Hapus">
-                                            <i class="bi bi-trash-fill"></i>
+                                <td class="border-0 px-4 py-3 rounded-end">
+                                    <div class="d-flex justify-content-end align-items-center gap-2">
+                                        <button class="btn btn-sm btn-outline-primary rounded-circle" style="width: 32px; height: 32px; padding: 0;" data-bs-toggle="modal" data-bs-target="#editModal{{ $f->id }}" title="Edit">
+                                            <i class="bi bi-pencil-fill"></i>
                                         </button>
-                                    </form>
+                                        <form action="{{ route('admin.fasilitas.destroy', $f->id) }}" method="POST" class="d-inline mb-0">
+                                            @csrf @method('DELETE')
+                                            <button type="button" class="btn btn-sm btn-outline-danger rounded-circle btn-delete" style="width: 32px; height: 32px; padding: 0;" title="Hapus" data-nama="{{ $f->nama }}">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
 
@@ -191,3 +193,34 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    document.querySelectorAll('.btn-delete').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = this.closest('form');
+            const namaFasilitas = this.getAttribute('data-nama');
+            
+            Swal.fire({
+                title: 'Hapus Fasilitas?',
+                text: `Apakah Anda yakin ingin menghapus fasilitas "${namaFasilitas}"? Tindakan ini tidak dapat dibatalkan.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444', // Danger Red
+                cancelButtonColor: '#6b7280', // Gray
+                confirmButtonText: 'Ya, Hapus!',
+                cancelButtonText: 'Batal',
+                background: '#fff',
+                customClass: {
+                    popup: 'rounded-4'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+        });
+    });
+</script>
+@endpush

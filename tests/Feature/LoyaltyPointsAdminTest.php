@@ -23,15 +23,13 @@ class LoyaltyPointsAdminTest extends TestCase
         // Create Admin
         $this->admin = User::create([
             'name' => 'Admin User',
-            'email' => 'admin@test.com',
-            'password' => bcrypt('password'),
+            'password' => bcrypt('admin'),
             'role' => 'admin',
         ]);
 
         // Create Customer
         $this->pelanggan = User::create([
             'name' => 'Customer User',
-            'email' => 'customer@test.com',
             'password' => bcrypt('password'),
             'role' => 'pelanggan',
             'poin_saldo' => 100, // Saldo awal

@@ -180,7 +180,7 @@
             <table class="table table-hover align-middle mb-0 tbl-compact">
                 <thead>
                     <tr>
-                        <th style="width:3%">#</th>
+                        <th style="width:3%">No.</th>
                         <th style="width:20%">Pelanggan</th>
                         <th style="width:17%">Lapangan</th>
                         <th style="width:14%">Jadwal</th>
@@ -214,7 +214,7 @@
                                             {{ $b->user?->name ?? '-' }}
                                             <span class="badge bg-info text-white" style="font-size:.55rem; padding:1px 4px; font-weight:500; vertical-align:middle;">ON</span>
                                         </div>
-                                        <div class="text-secondary text-truncate" style="font-size:0.68rem;"><i class="bi bi-envelope me-1"></i>{{ $b->user?->email ?? '-' }}</div>
+                                        <div class="text-secondary text-truncate" style="font-size:0.68rem;"><i class="bi bi-person me-1"></i>{{ $b->user?->username ?? '-' }}</div>
                                     </div>
                                 </div>
                             @endif
@@ -455,11 +455,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     calculateCosts();
                     document.getElementById('btn-simpan-fasilitas').disabled = false;
                 } else {
-                    alert('Gagal: ' + (res.message || 'Error'));
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal',
+                        text: res.message || 'Terjadi kesalahan saat memuat data fasilitas.'
+                    });
                     modal.hide();
                 }
             })
-            .catch(err => { console.error(err); alert('Kesalahan koneksi.'); modal.hide(); });
+            .catch(err => {
+                console.error(err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Kesalahan Koneksi',
+                    text: 'Gagal menghubungi server. Silakan coba lagi.'
+                });
+                modal.hide();
+            });
     }
     
     function calculateCosts() {

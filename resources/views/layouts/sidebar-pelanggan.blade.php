@@ -1,5 +1,5 @@
 {{-- Sidebar Pelanggan --}}
-<div class="sidebar">
+<div class="sidebar {{ ($sidebarState ?? 'closed') === 'closed' ? 'collapsed' : '' }}">
     {{-- Brand --}}
     <div class="sidebar-brand">
         <a href="{{ route('home') }}" class="text-decoration-none d-flex align-items-center">

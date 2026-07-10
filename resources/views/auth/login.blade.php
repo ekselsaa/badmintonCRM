@@ -425,6 +425,11 @@
         .btn-toggle-password:hover {
             color: #94a3b8;
         }
+        /* Hide browser default password reveal and clear icons */
+        input::-ms-reveal,
+        input::-ms-clear {
+            display: none !important;
+        }
 
         /* Sequential loading animations */
         .form-field-animate {
@@ -585,10 +590,10 @@
                 @endif
                 
                 <div class="mb-4 form-field-animate field-delay-3">
-                    <label class="form-label">Email Address</label>
+                    <label class="form-label">Username / No. WhatsApp</label>
                     <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                        <input type="email" name="email" class="form-control" placeholder="nama@email.com" value="{{ old('email') }}" required autofocus>
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <input type="text" name="username" class="form-control" placeholder="Masukkan username atau no. HP" value="{{ old('username') }}" required autofocus>
                     </div>
                 </div>
 
@@ -698,8 +703,10 @@
                 form.addEventListener('submit', function() {
                     // Cek kelayakan form HTML5 validation
                     if (form.checkValidity()) {
-                        submitBtn.disabled = true;
                         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Memproses...';
+                        setTimeout(() => {
+                            submitBtn.disabled = true;
+                        }, 1);
                     }
                 });
             }

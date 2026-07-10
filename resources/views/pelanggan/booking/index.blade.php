@@ -272,21 +272,17 @@
     flex: 1;
     min-height: 0;
 }
-.checkout-tab-content {
+.checkout-scroll-content {
     flex-grow: 1;
     overflow-y: auto;
-    max-height: 100%;
     margin-bottom: 8px;
     padding-right: 4px;
     min-height: 0;
 }
-.checkout-tab-content .tab-pane {
-    height: 100%;
-}
-.checkout-tab-content::-webkit-scrollbar {
+.checkout-scroll-content::-webkit-scrollbar {
     width: 4px;
 }
-.checkout-tab-content::-webkit-scrollbar-thumb {
+.checkout-scroll-content::-webkit-scrollbar-thumb {
     background: #cbd5e1;
     border-radius: 10px;
 }
@@ -503,6 +499,17 @@
     color: #fff;
     border: 1px solid #ef4444;
 }
+.visual-court-item.status-closed {
+    border-color: rgba(107, 114, 128, 0.15);
+}
+.visual-court-item.status-closed .court-overlay-info {
+    background: rgba(107, 114, 128, 0.2);
+}
+.visual-court-item.status-closed .court-status-badge {
+    background-color: #6b7280;
+    color: #fff;
+    border: 1px solid #6b7280;
+}
 
 /* Court Active Style */
 .visual-court-item.active {
@@ -525,10 +532,10 @@
     overflow-x: auto;
     width: 100%;
     scrollbar-width: thin;
-    padding-bottom: 4px;
+    padding-bottom: 12px;
 }
 .timeline-scroll-wrapper::-webkit-scrollbar {
-    height: 5px;
+    height: 6px;
 }
 .timeline-scroll-wrapper::-webkit-scrollbar-track {
     background: transparent;
@@ -548,8 +555,9 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: #fff;
-    border: 1.5px solid #e2e8f0;
+    background: #e6fbf1;
+    border: 1.5px solid #a7f3d0;
+    color: #047857;
     border-radius: 8px;
     padding: 6px 4px;
     cursor: pointer;
@@ -557,15 +565,17 @@
     user-select: none;
     min-width: 50px;
 }
-.timeline-slot:hover:not(.disabled) {
-    border-color: #3b82f6;
-    background: #eff6ff;
+.timeline-slot:hover:not(.disabled):not(.status-selected) {
+    border-color: #34d399;
+    background: #d1fae5;
+    color: #065f46;
     transform: translateY(-1px);
 }
 .timeline-slot.disabled {
     cursor: not-allowed;
-    background: #f1f5f9;
-    border-color: #e2e8f0;
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+    color: #94a3b8 !important;
     opacity: 0.75;
 }
 .timeline-slot.status-booked {
@@ -577,6 +587,11 @@
     background: #fef3c7 !important;
     border-color: #fde68a !important;
     color: #b45309;
+}
+.timeline-slot.status-closed {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #64748b !important;
 }
 .timeline-slot.status-selected {
     background: #2563eb !important;
@@ -731,12 +746,23 @@
             background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
             border: 1.5px solid #86efac;
             border-radius: 16px;
-            padding: 14px 18px;
+            padding: 14px 38px 14px 18px;
             position: relative;
             overflow: hidden;
             box-shadow: 0 4px 20px -4px rgba(16,185,129,.15);
             animation: slideDownBanner .35s cubic-bezier(.16,1,.3,1) both;
+            transition: all 0.35s ease-in-out;
         ">
+            {{-- Dismiss button --}}
+            <button type="button" class="btn-close" aria-label="Close" onclick="dismissPreSelectedBanner()" style="
+                position: absolute;
+                top: 14px;
+                right: 14px;
+                font-size: 0.72rem;
+                z-index: 10;
+                background-size: 0.75em;
+            "></button>
+
             {{-- Decorative glow --}}
             <div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(16,185,129,.2) 0%,transparent 70%);border-radius:50%;pointer-events:none;"></div>
 
@@ -783,6 +809,13 @@
             from { opacity:0; transform: translateY(-10px); }
             to   { opacity:1; transform: translateY(0); }
         }
+        @keyframes slideUpBanner {
+            from { opacity:1; transform: translateY(0); }
+            to   { opacity:0; transform: translateY(-10px); }
+        }
+        .banner-hidden {
+            animation: slideUpBanner .35s cubic-bezier(.16,1,.3,1) both !important;
+        }
         </style>
 
         <div class="booking-dashboard">
@@ -812,11 +845,11 @@
                                        onchange="selectCourt('{{ $l->id }}')">
                                 <div class="d-flex align-items-center gap-3">
                                     <div class="rounded-circle bg-primary bg-opacity-10 p-2 d-flex align-items-center justify-content-center" style="width:36px; height:36px;">
-                                        <i class="bi bi-hash text-primary fw-bold" style="font-size: 0.9rem;"></i>
+                                        <span class="text-primary fw-bold" style="font-size: 0.85rem;">{{ str_replace('Lapangan ', '', $l->nama_lapangan) }}</span>
                                     </div>
                                     <div>
                                         <div class="fw-bold text-dark" style="font-size: 0.82rem;">{{ $l->nama_lapangan }}</div>
-                                        <div class="text-muted small" style="font-size: 0.72rem;">
+                                        <div class="text-muted small court-price-display" id="court-price-{{ $l->id }}" style="font-size: 0.72rem;">
                                             Rp {{ number_format($l->harga_weekday, 0, ',', '.') }} / Jam
                                         </div>
                                     </div>
@@ -886,12 +919,13 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="d-flex flex-wrap justify-content-between align-items-center mt-2 gap-2 px-1">
-                            <div class="d-flex flex-wrap gap-2.5 small" style="font-size: 0.68rem; color: #64748b;">
-                                <span class="d-flex align-items-center gap-1"><span class="legend-dot" style="background:#fff; border:1px solid #cbd5e1;"></span> Kosong</span>
-                                <span class="d-flex align-items-center gap-1"><span class="legend-dot" style="background:#2563eb;"></span> Pilihan Anda</span>
-                                <span class="d-flex align-items-center gap-1"><span class="legend-dot" style="background:#fecaca; border:1px solid #fca5a5;"></span> Dipesan</span>
-                                <span class="d-flex align-items-center gap-1"><span class="legend-dot" style="background:#fef3c7; border:1px solid #fde68a;"></span> Pending</span>
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mt-2 px-1">
+                            <div class="d-flex flex-wrap small" style="font-size: 0.72rem; color: #64748b; gap: 16px;">
+                                <span class="d-flex align-items-center" style="gap: 6px;"><span class="legend-dot" style="background:#e6fbf1; border:1px solid #a7f3d0;"></span> Tersedia</span>
+                                <span class="d-flex align-items-center" style="gap: 6px;"><span class="legend-dot" style="background:#2563eb;"></span> Pilihan Anda</span>
+                                <span class="d-flex align-items-center" style="gap: 6px;"><span class="legend-dot" style="background:#fecaca; border:1px solid #fca5a5;"></span> Dipesan</span>
+                                <span class="d-flex align-items-center" style="gap: 6px;"><span class="legend-dot" style="background:#fef3c7; border:1px solid #fde68a;"></span> Pending</span>
+                                <span class="d-flex align-items-center" style="gap: 6px;"><span class="legend-dot" style="background:#f1f5f9; border:1px solid #cbd5e1;"></span> Ditutup</span>
                             </div>
                         </div>
                     </div>
@@ -967,7 +1001,7 @@
                             </div>
                             <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.85rem;">Loyalty Points &amp; Voucher</h6>
                         </div>
-                        <p class="text-muted mb-2.5" style="font-size:0.72rem; line-height: 1.4;">
+                        <p class="text-muted mb-2" style="font-size:0.72rem; line-height: 1.4;">
                             Saldo Anda: <strong>{{ number_format(auth()->user()->poin_saldo) }} Poin</strong>. Gunakan voucher diskon yang telah diklaim di menu <a href="{{ route('loyalty.index') }}" class="text-primary fw-bold text-decoration-underline">Loyalty Points</a>.
                         </p>
 
@@ -1136,108 +1170,88 @@
                 {{-- Checkout Invoice Panel --}}
                 <div class="checkout-panel">
                     
-                    {{-- Nav Tab --}}
-                    <ul class="nav nav-pills premium-nav-pills" id="checkoutTab" role="tablist">
-                        <li class="nav-item" role="presentation" style="flex: 1;">
-                            <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary-tab-pane" type="button" role="tab" aria-controls="summary-tab-pane" aria-selected="true">
-                                <i class="bi bi-receipt me-1"></i>Ringkasan Bayar
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation" style="flex: 1;">
-                            <button class="nav-link" id="occupied-tab" data-bs-toggle="tab" data-bs-target="#occupied-tab-pane" type="button" role="tab" aria-controls="occupied-tab-pane" aria-selected="false">
-                                <i class="bi bi-calendar-x me-1"></i>Jadwal Terisi
-                            </button>
-                        </li>
-                    </ul>
+                    {{-- Nav Tab removed, showing Ringkasan Pembayaran directly --}}
+                    <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom flex-shrink-0">
+                        <div class="rounded-circle bg-primary bg-opacity-10 p-2 d-flex align-items-center justify-content-center" style="width:32px; height:32px;">
+                            <i class="bi bi-receipt text-primary" style="font-size: 0.85rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.9rem;">Ringkasan Pembayaran</h6>
+                    </div>
                     
-                    {{-- Tab Contents --}}
-                    <div class="tab-content checkout-tab-content" id="checkoutTabContent">
+                    <div class="checkout-scroll-content d-flex flex-column">
                         
-                        {{-- Tab 1: Ringkasan Bayar --}}
-                        <div class="tab-pane fade show active" id="summary-tab-pane" role="tabpanel" aria-labelledby="summary-tab" tabindex="0">
-                            <div class="d-flex flex-column h-100">
-                                
-                                <div id="checkout-empty-state" class="text-center py-4 text-muted small">
-                                    <i class="bi bi-cart-x fs-3 d-block mb-2 text-secondary"></i>
-                                    Pilih lapangan dan jadwal jam untuk melihat rincian biaya.
-                                </div>
-                                
-                                <div id="checkout-details" class="d-none">
-                                    <h6 class="fw-bold mb-2 text-dark pb-1 border-bottom" style="font-size: 0.85rem;">Rincian Booking</h6>
-                                    
-                                    <div class="invoice-item">
-                                        <span>Lapangan</span>
-                                        <span id="invoice-court-name" class="fw-bold text-dark">-</span>
-                                    </div>
-                                    <div class="invoice-item">
-                                        <span>Tanggal</span>
-                                        <span id="invoice-date" class="fw-bold text-dark">-</span>
-                                    </div>
-                                    <div class="invoice-item">
-                                        <span>Durasi Sewa</span>
-                                        <span id="invoice-time-range" class="fw-bold text-dark">-</span>
-                                    </div>
-                                    <div class="invoice-item">
-                                        <span>Metode Bayar</span>
-                                        <span id="invoice-payment" class="fw-bold text-dark">-</span>
-                                    </div>
-                                    
-                                    {{-- Dinamis list fasilitas tambahan --}}
-                                    <div id="invoice-facilities-list"></div>
-                                    
-                                    {{-- Diskon --}}
-                                    <div id="invoice-discounts-list"></div>
-                                </div>
-                                
-                                {{-- Input Catatan --}}
-                                <div class="mt-1.5">
-                                    <div class="bk-label" style="margin-bottom: 4px;">Catatan (Opsional)</div>
-                                    <input type="text" name="catatan" class="form-control bk-input" placeholder="Tulis catatan jika ada..." style="font-size: 0.78rem; padding: 6px 10px; border-radius: 8px;">
-                                </div>
-                                
-                                {{-- Invoice Total Box --}}
-                                <div id="containerTotal" class="invoice-total-box d-none mt-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="small fw-bold text-secondary">Estimasi Total Bayar:</span>
-                                        <span class="h5 fw-bold text-primary mb-0" id="displayTotal" style="font-size: 1.3rem;">Rp 0</span>
-                                    </div>
-                                    <div class="text-muted mt-1" style="font-size: 0.72rem;" id="detailHitung"></div>
-                                    
-                                    {{-- Estimasi Poin --}}
-                                    <div class="pt-2 mt-2 border-top d-flex justify-content-between align-items-center" style="border-top: 1.5px dashed #bfdbfe !important;">
-                                        <span class="small fw-bold text-success" style="font-size:0.75rem;">
-                                            <i class="bi bi-gem me-1"></i>Estimasi Poin Didapat:
-                                        </span>
-                                        <span class="badge bg-success text-white fw-bold px-2 py-1" style="font-size:0.75rem;" id="displayPoinEstimasi">+0 Poin</span>
-                                    </div>
-                                </div>
-                                
-                            </div>
+                        <div id="checkout-empty-state" class="text-center py-4 text-muted small">
+                            <i class="bi bi-cart-x fs-3 d-block mb-2 text-secondary"></i>
+                            Pilih lapangan dan jadwal jam untuk melihat rincian biaya.
                         </div>
                         
-                        {{-- Tab 2: Jadwal Terisi --}}
-                        <div class="tab-pane fade" id="occupied-tab-pane" role="tabpanel" aria-labelledby="occupied-tab" tabindex="0">
-                            <h6 class="fw-bold mb-3 text-danger pb-1 border-bottom" style="font-size: 0.85rem;" id="occupiedSchedulesHeader">
-                                <i class="bi bi-info-circle me-1"></i>Jadwal Terisi
-                            </h6>
-                            <p class="text-muted small mb-3">Harap hindari memilih jam yang bertabrakan dengan jadwal di bawah ini.</p>
-                            <div id="occupiedSchedulesList">
-                                {{-- AJAX content --}}
+                        <div id="checkout-details" class="d-none">
+                            <h6 class="fw-bold mb-2 text-dark pb-1 border-bottom" style="font-size: 0.85rem;">Rincian Booking</h6>
+                            
+                            <div class="invoice-item">
+                                <span>Lapangan</span>
+                                <span id="invoice-court-name" class="fw-bold text-dark">-</span>
+                            </div>
+                            <div class="invoice-item">
+                                <span>Tanggal</span>
+                                <span id="invoice-date" class="fw-bold text-dark">-</span>
+                            </div>
+                            <div class="invoice-item">
+                                <span>Durasi Sewa</span>
+                                <span id="invoice-time-range" class="fw-bold text-dark">-</span>
+                            </div>
+                            <div class="invoice-item">
+                                <span>Metode Bayar</span>
+                                <span id="invoice-payment" class="fw-bold text-dark">-</span>
+                            </div>
+                            
+                            {{-- Dinamis list fasilitas tambahan --}}
+                            <div id="invoice-facilities-list"></div>
+                            
+                            {{-- Diskon --}}
+                            <div id="invoice-discounts-list"></div>
+                        </div>
+                        
+                        {{-- Input Catatan --}}
+                        <div class="mt-2">
+                            <div class="bk-label" style="margin-bottom: 4px;">Catatan (Opsional)</div>
+                            <input type="text" name="catatan" class="form-control bk-input" placeholder="Tulis catatan jika ada..." style="font-size: 0.78rem; padding: 6px 10px; border-radius: 8px;">
+                        </div>
+                        
+                        {{-- Invoice Total Box --}}
+                        <div id="containerTotal" class="invoice-total-box d-none mt-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small fw-bold text-secondary">Estimasi Total Bayar:</span>
+                                <span class="h5 fw-bold text-primary mb-0" id="displayTotal" style="font-size: 1.3rem;">Rp 0</span>
+                            </div>
+                            <div class="text-muted mt-1" style="font-size: 0.72rem;" id="detailHitung"></div>
+                            
+                            {{-- Estimasi Poin --}}
+                            <div class="pt-2 mt-2 border-top d-flex flex-column gap-1" style="border-top: 1.5px dashed #bfdbfe !important;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold text-success" style="font-size:0.75rem;">
+                                        <i class="bi bi-gem me-1"></i>Estimasi Poin Didapat:
+                                    </span>
+                                    <span class="badge bg-success text-white fw-bold px-2 py-1" style="font-size:0.75rem;" id="displayPoinEstimasi">+0 Poin</span>
+                                </div>
+                                <div id="displayPoinNote" class="text-success fw-bold text-end d-none" style="font-size:0.68rem; letter-spacing: 0.3px;">
+                                    <i class="bi bi-lightning-charge-fill me-1"></i> Jam Off-Peak Double Points!
+                                </div>
                             </div>
                         </div>
                         
                     </div>
                     
                     {{-- Ticket Divider Line --}}
-                    <div style="display: flex; align-items: center; margin: 4px -12px; position: relative;">
+                    <div class="flex-shrink-0" style="display: flex; align-items: center; margin: 4px -12px; position: relative;">
                         <div style="width: 10px; height: 20px; background: #f1f5f9; border-radius: 0 10px 10px 0; border: 1px solid rgba(226, 232, 240, 0.8); border-left: none; position: absolute; left: 0; z-index: 10;"></div>
                         <div style="flex-grow: 1; border-top: 2px dashed #e2e8f0; height: 1px;"></div>
                         <div style="width: 10px; height: 20px; background: #f1f5f9; border-radius: 10px 0 0 10px; border: 1px solid rgba(226, 232, 240, 0.8); border-right: none; position: absolute; right: 0; z-index: 10;"></div>
                     </div>
 
                     {{-- Form Submit Button --}}
-                    <div class="mt-auto pt-1.5">
-                        <button type="submit" id="btnSubmitForm" class="btn btn-primary w-100 py-1.5 rounded-3 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-lg" style="box-shadow: 0 4px 14px rgba(37,99,235,0.4) !important;">
+                    <div class="mt-auto pt-2 flex-shrink-0">
+                        <button type="submit" id="btnSubmitForm" class="btn btn-primary w-100 py-2 rounded-3 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-lg" style="box-shadow: 0 4px 14px rgba(37,99,235,0.4) !important;">
                             <i class="bi bi-check-circle-fill"></i>
                             <span>Konfirmasi & Bayar Sekarang</span>
                         </button>
@@ -1257,6 +1271,124 @@
 // Global state
 window.occupiedJadwals = [];
 window.timelineSelectionStage = 0; // 0 = select start, 1 = select end
+window.stateLoaded = false;
+
+function saveBookingState() {
+    if (!window.stateLoaded) return;
+    try {
+        const state = {
+            lapangan_id: document.querySelector('input[name="lapangan_id"]:checked')?.value || '',
+            tanggal: document.querySelector('input[name="tanggal"]')?.value || '',
+            jam_mulai: document.querySelector('select[name="jam_mulai"]')?.value || '',
+            jam_selesai: document.querySelector('select[name="jam_selesai"]')?.value || '',
+            fasilitas: {},
+            vouchers: [],
+            metode_pembayaran: document.querySelector('input[name="metode_pembayaran"]:checked')?.value || 'qris',
+            catatan: document.querySelector('input[name="catatan"]')?.value || ''
+        };
+        
+        document.querySelectorAll('.qty-input').forEach(input => {
+            state.fasilitas[input.dataset.id] = parseInt(input.value) || 0;
+        });
+        
+        document.querySelectorAll('.voucher-checkbox:checked').forEach(chk => {
+            state.vouchers.push(chk.id);
+        });
+        
+        sessionStorage.setItem('booking_form_state', JSON.stringify(state));
+    } catch (e) {
+        console.error("Gagal menyimpan state booking:", e);
+    }
+}
+
+function restoreBookingState() {
+    try {
+        const stateStr = sessionStorage.getItem('booking_form_state');
+        if (!stateStr) return;
+        const state = JSON.parse(stateStr);
+        if (!state) return;
+
+        // 1. Restore Tanggal
+        if (state.tanggal) {
+            const tanggalInput = document.querySelector('input[name="tanggal"]');
+            if (tanggalInput) {
+                const todayStr = new Date().toISOString().split('T')[0];
+                if (state.tanggal >= todayStr) {
+                    tanggalInput.value = state.tanggal;
+                    const filterTgl = document.getElementById('filter_tanggal_create');
+                    if (filterTgl) filterTgl.value = state.tanggal;
+                }
+            }
+        }
+
+        // 2. Restore Jam Mulai & Selesai
+        if (state.jam_mulai) {
+            const jamMulaiInput = document.querySelector('select[name="jam_mulai"]');
+            if (jamMulaiInput) jamMulaiInput.value = state.jam_mulai;
+        }
+        if (state.jam_selesai) {
+            const jamSelesaiInput = document.querySelector('select[name="jam_selesai"]');
+            if (jamSelesaiInput) jamSelesaiInput.value = state.jam_selesai;
+        }
+
+        // 3. Restore Lapangan
+        if (state.lapangan_id) {
+            const radio = document.querySelector(`input[name="lapangan_id"][value="${state.lapangan_id}"]`);
+            if (radio) {
+                radio.checked = true;
+                const filterLap = document.getElementById('filter_lapangan_create');
+                if (filterLap) filterLap.value = state.lapangan_id;
+            }
+        }
+
+        // 4. Restore Fasilitas quantities
+        if (state.fasilitas) {
+            Object.keys(state.fasilitas).forEach(id => {
+                const qty = state.fasilitas[id];
+                const input = document.getElementById(`qty-input-${id}`);
+                if (input) {
+                    input.value = qty;
+                    const btnMinus = document.getElementById(`btn-minus-${id}`);
+                    if (btnMinus) {
+                        btnMinus.disabled = (qty === 0);
+                    }
+                }
+            });
+        }
+
+        // 5. Restore Vouchers
+        if (state.vouchers && Array.isArray(state.vouchers)) {
+            state.vouchers.forEach(chkId => {
+                const chk = document.getElementById(chkId);
+                if (chk) {
+                    chk.checked = true;
+                    const card = document.getElementById(chkId.replace('chk_', 'card_'));
+                    if (card) card.classList.add('active');
+                }
+            });
+        }
+
+        // 6. Restore Metode Pembayaran
+        if (state.metode_pembayaran) {
+            const radio = document.querySelector(`input[name="metode_pembayaran"][value="${state.metode_pembayaran}"]`);
+            if (radio) {
+                radio.checked = true;
+                const cardQris = document.getElementById('card-qris');
+                const cardTunai = document.getElementById('card-tunai');
+                if (cardQris) cardQris.classList.toggle('active', state.metode_pembayaran === 'qris');
+                if (cardTunai) cardTunai.classList.toggle('active', state.metode_pembayaran === 'tunai');
+            }
+        }
+
+        // 7. Restore Catatan
+        if (state.catatan) {
+            const catatanInput = document.querySelector('input[name="catatan"]');
+            if (catatanInput) catatanInput.value = state.catatan;
+        }
+    } catch (e) {
+        console.error("Gagal memulihkan state booking:", e);
+    }
+}
 
 // Micro-feedback scale pop on steppers
 function triggerPop(elementId) {
@@ -1541,6 +1673,7 @@ function onDateChange(val) {
         filterTgl.value = val;
     }
     disablePastHours();
+    updateAllCourtPrices();
     fetchOccupiedSchedules();
 }
 
@@ -1641,6 +1774,12 @@ function updateVisualCourtsStatus() {
                 badge.textContent = 'Pending';
                 badge.className = 'court-status-badge bg-warning-subtle text-warning';
             }
+        } else if (status === 'ditutup') {
+            item.classList.add('status-closed');
+            if (badge) {
+                badge.textContent = 'Ditutup';
+                badge.className = 'court-status-badge bg-secondary text-white';
+            }
         } else {
             item.classList.add('status-dipesan');
             if (badge) {
@@ -1727,6 +1866,7 @@ function renderTimeline() {
         let isPast = isPastDate || (isToday && slot.hour <= currentHour);
         let isBooked = false;
         let isPending = false;
+        let isClosed = false;
 
         // Check if court has overlapping booking
         if (selectedCourtId && window.occupiedJadwals && window.occupiedJadwals.length > 0) {
@@ -1740,6 +1880,8 @@ function renderTimeline() {
             if (overlap) {
                 if (overlap.status === 'pending') {
                     isPending = true;
+                } else if (overlap.status === 'ditutup') {
+                    isClosed = true;
                 } else {
                     isBooked = true;
                 }
@@ -1772,10 +1914,13 @@ function renderTimeline() {
         const slotEl = document.createElement('div');
         slotEl.className = 'timeline-slot';
         
-        let statusText = 'Kosong';
+        let statusText = 'Tersedia';
         if (isPast) {
             slotEl.classList.add('disabled');
             statusText = 'Terlewat';
+        } else if (isClosed) {
+            slotEl.classList.add('disabled', 'status-closed');
+            statusText = 'Ditutup';
         } else if (isBooked) {
             slotEl.classList.add('disabled', 'status-booked');
             statusText = 'Dipesan';
@@ -1792,7 +1937,7 @@ function renderTimeline() {
             <span class="timeline-slot-status">${statusText}</span>
         `;
 
-        if (!isPast && !isBooked && !isPending) {
+        if (!isPast && !isBooked && !isPending && !isClosed) {
             slotEl.addEventListener('click', () => onSlotClick(slot));
         }
 
@@ -2042,10 +2187,18 @@ function hitungTotal() {
             const totalPointsEarned = pointSewa + pointFasilitas;
 
             const displayPoin = document.getElementById('displayPoinEstimasi');
+            const displayNote = document.getElementById('displayPoinNote');
             if (displayPoin) {
-                let note = isOffPeak ? ' (Jam Off-Peak Double Points!)' : '';
-                displayPoin.innerHTML = `+${totalPointsEarned.toLocaleString('id-ID')} Poin${note}`;
+                displayPoin.innerHTML = `+${totalPointsEarned.toLocaleString('id-ID')} Poin`;
             }
+            if (displayNote) {
+                if (isOffPeak) {
+                    displayNote.classList.remove('d-none');
+                } else {
+                    displayNote.classList.add('d-none');
+                }
+            }
+            saveBookingState();
             return;
         }
     }
@@ -2056,6 +2209,26 @@ function hitungTotal() {
     if (container) container.classList.add('d-none');
     const discList = document.getElementById('invoice-discounts-list');
     if (discList) discList.innerHTML = '';
+    saveBookingState();
+}
+
+// Update all court option card pricing text dynamically based on weekday/weekend
+function updateAllCourtPrices() {
+    const tanggalInput = document.querySelector('input[name="tanggal"]');
+    if (!tanggalInput || !tanggalInput.value) return;
+
+    const date = new Date(tanggalInput.value);
+    const day = date.getDay();
+    const isWeekend = (day === 0 || day === 6);
+
+    document.querySelectorAll('input[name="lapangan_id"]').forEach(radio => {
+        const id = radio.value;
+        const priceDisplay = document.getElementById('court-price-' + id);
+        if (priceDisplay) {
+            const price = isWeekend ? parseInt(radio.dataset.weekend) : parseInt(radio.dataset.weekday);
+            priceDisplay.textContent = 'Rp ' + price.toLocaleString('id-ID') + ' / Jam';
+        }
+    });
 }
 
 // Badge harga aktif berdasarkan tanggal (create)
@@ -2201,12 +2374,15 @@ function rebuildOccupiedSchedulesList(jadwals) {
         let html = '<div class="row g-2">';
         jadwals.forEach(j => {
             const isPending = j.status === 'pending';
-            const borderWarna = isPending ? '#fde68a' : '#fecaca';
-            const textWarna = isPending ? 'text-warning' : 'text-danger';
-            const labelText = isPending ? 'Pending' : 'Dipesan';
-            const badgeHtml = isPending 
-                ? `<span class="badge" style="background:#fef3c7;color:#92400e; font-size: 0.65rem;">${labelText}</span>`
-                : `<span class="badge bg-danger" style="font-size: 0.65rem;">${labelText}</span>`;
+            const isClosed = j.status === 'ditutup';
+            const borderWarna = isClosed ? '#cbd5e1' : (isPending ? '#fde68a' : '#fecaca');
+            const textWarna = isClosed ? 'text-secondary' : (isPending ? 'text-warning' : 'text-danger');
+            const labelText = isClosed ? 'Ditutup' : (isPending ? 'Pending' : 'Dipesan');
+            const badgeHtml = isClosed
+                ? `<span class="badge bg-secondary text-white" style="font-size: 0.65rem;">${labelText}</span>`
+                : (isPending 
+                    ? `<span class="badge" style="background:#fef3c7;color:#92400e; font-size: 0.65rem;">${labelText}</span>`
+                    : `<span class="badge bg-danger" style="font-size: 0.65rem;">${labelText}</span>`);
 
             const jamMulai = formatTime(j.jam_mulai);
             const jamSelesai = formatTime(j.jam_selesai);
@@ -2314,6 +2490,16 @@ document.querySelectorAll('select[name="jam_mulai"], select[name="jam_selesai"]'
     el.addEventListener('change', updateFasilitasAvailability);
 });
 
+function dismissPreSelectedBanner() {
+    const banner = document.getElementById('jadwalPreSelectedBanner');
+    if (banner) {
+        banner.classList.add('banner-hidden');
+        setTimeout(() => {
+            banner.style.display = 'none';
+        }, 350);
+    }
+}
+
 function toggleVoucherItem(id, fromCheckbox = false) {
     const card = document.getElementById('card_' + id);
     const chk = document.getElementById('chk_' + id);
@@ -2329,6 +2515,9 @@ function toggleVoucherItem(id, fromCheckbox = false) {
 
 // Initialization
 window.addEventListener('DOMContentLoaded', function() {
+    // 1. Restore state first
+    restoreBookingState();
+
     // Add active class to checked voucher cards on page load
     document.querySelectorAll('.voucher-checkbox').forEach(chk => {
         if (chk.checked) {
@@ -2337,10 +2526,19 @@ window.addEventListener('DOMContentLoaded', function() {
         }
     });
     disablePastHours();
+    updateAllCourtPrices();
     updateHargaBadgeCreate();
     updateFasilitasAvailability();
     hitungTotal();
     startPollingCreate();
+
+    // Auto-hide pre-selected banner after 6 seconds
+    const preSelectedBanner = document.getElementById('jadwalPreSelectedBanner');
+    if (preSelectedBanner) {
+        setTimeout(() => {
+            dismissPreSelectedBanner();
+        }, 6000);
+    }
 
     // ── Initial fetch: always load occupied schedules first ──
     // Jika ada pre-selected court (dari jadwal page), selectCourt()
@@ -2370,6 +2568,15 @@ window.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Event listener for catatan input
+    const catatanInput = document.querySelector('input[name="catatan"]');
+    if (catatanInput) {
+        catatanInput.addEventListener('input', saveBookingState);
+    }
+
+    // Enable saving state after initial restore is fully done
+    window.stateLoaded = true;
 });
 
 // Form submit confirmation
@@ -2403,6 +2610,7 @@ document.getElementById('formBookingCreate').addEventListener('submit', function
         allowOutsideClick: () => !Swal.isLoading()
     }).then((result) => {
         if (result.isConfirmed) {
+            sessionStorage.removeItem('booking_form_state');
             this.submit();
         } else {
             btn.disabled = false;
@@ -2416,6 +2624,7 @@ document.querySelectorAll('.btn-logout, .btn-logout-icon').forEach(function(btn)
     btn.addEventListener('click', function() {
         var bookingForm = document.getElementById('formBookingCreate');
         if (bookingForm) { bookingForm.reset(); }
+        sessionStorage.removeItem('booking_form_state');
         window.onbeforeunload = null;
     });
 });

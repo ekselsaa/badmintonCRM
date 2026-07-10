@@ -370,9 +370,13 @@
         {{-- Grafik Tren Pendapatan --}}
         <div class="col-lg-8">
             <div class="dash-card p-3 h-100">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Tren Pendapatan & Booking</h6>
-                    <span class="text-muted small">6 Bulan Terakhir</span>
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-1 text-dark"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Tren Pendapatan & Booking</h6>
+                        <div class="text-muted small" style="font-size: .75rem;">
+                            Dihitung per: <strong class="text-primary">6 Bulan Terakhir</strong>
+                        </div>
+                    </div>
                 </div>
                 <div style="position: relative; height: 320px;">
                     <canvas id="revenueChart"></canvas>
@@ -383,9 +387,56 @@
         {{-- Grafik Okupansi Lapangan --}}
         <div class="col-lg-4">
             <div class="dash-card p-3 h-100">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-pie-chart-fill me-2 text-success"></i>Okupansi Lapangan</h6>
-                    <span class="text-muted small">Total Sewa</span>
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-1 text-dark"><i class="bi bi-pie-chart-fill me-2 text-success"></i>Okupansi Lapangan</h6>
+                        <div class="text-muted small" style="font-size: .75rem;">
+                            Dihitung per: <strong class="text-success">{{ $courtFilter['label'] }}</strong>
+                        </div>
+                    </div>
+                    
+                    <!-- Dropdown Filter Okupansi -->
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside" style="border-radius: 8px; font-size: .75rem;">
+                            <i class="bi bi-funnel"></i> Filter
+                        </button>
+                        <div class="dropdown-menu p-3 dropdown-menu-end" style="width: 260px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; border-radius: 12px;">
+                            <form action="{{ route('admin.dashboard') }}" method="GET">
+                                <!-- Preserve other filters -->
+                                <input type="hidden" name="peak_filter_type" value="{{ $peakFilter['type'] }}">
+                                <input type="hidden" name="peak_filter_date" value="{{ $peakFilter['date'] }}">
+                                <input type="hidden" name="peak_filter_month" value="{{ $peakFilter['month'] }}">
+                                <input type="hidden" name="payment_filter_type" value="{{ $paymentFilter['type'] }}">
+                                <input type="hidden" name="payment_filter_date" value="{{ $paymentFilter['date'] }}">
+                                <input type="hidden" name="payment_filter_month" value="{{ $paymentFilter['month'] }}">
+                                
+                                <div class="mb-2">
+                                    <label class="form-label text-muted fw-600 mb-1" style="font-size: .75rem;">Rentang Waktu</label>
+                                    <select name="court_filter_type" class="form-select form-select-sm filter-type-select" style="border-radius: 8px; font-size: .8rem;">
+                                        <option value="all" {{ $courtFilter['type'] === 'all' ? 'selected' : '' }}>Semua Waktu</option>
+                                        <option value="today" {{ $courtFilter['type'] === 'today' ? 'selected' : '' }}>Hari Ini</option>
+                                        <option value="this_month" {{ $courtFilter['type'] === 'this_month' ? 'selected' : '' }}>Bulan Ini</option>
+                                        <option value="custom_date" {{ $courtFilter['type'] === 'custom_date' ? 'selected' : '' }}>Pilih Tanggal</option>
+                                        <option value="custom_month" {{ $courtFilter['type'] === 'custom_month' ? 'selected' : '' }}>Pilih Bulan</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-2 date-input-container" style="display: {{ $courtFilter['type'] === 'custom_date' ? 'block' : 'none' }};">
+                                    <label class="form-label text-muted fw-600 mb-1" style="font-size: .75rem;">Pilih Tanggal</label>
+                                    <input type="date" name="court_filter_date" value="{{ $courtFilter['date'] }}" class="form-control form-control-sm" style="border-radius: 8px; font-size: .8rem;">
+                                </div>
+                                
+                                <div class="mb-2 month-input-container" style="display: {{ $courtFilter['type'] === 'custom_month' ? 'block' : 'none' }};">
+                                    <label class="form-label text-muted fw-600 mb-1" style="font-size: .75rem;">Pilih Bulan</label>
+                                    <input type="month" name="court_filter_month" value="{{ $courtFilter['month'] }}" class="form-control form-control-sm" style="border-radius: 8px; font-size: .8rem;">
+                                </div>
+                                
+                                <button type="submit" class="btn btn-success btn-sm w-100 mt-2 d-flex align-items-center justify-content-center gap-1" style="border-radius: 8px; font-weight: 600; font-size: .8rem;">
+                                    Terapkan
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
                 <div style="position: relative; height: 320px;" class="d-flex align-items-center justify-content-center">
                     <canvas id="courtChart"></canvas>
@@ -398,9 +449,56 @@
         {{-- Grafik Jam Sibuk --}}
         <div class="col-lg-7">
             <div class="dash-card p-3 h-100">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-hourglass-split me-2 text-warning"></i>Jam Sibuk Booking</h6>
-                    <span class="text-muted small">Berdasarkan Jam Operasional</span>
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-1 text-dark"><i class="bi bi-hourglass-split me-2 text-warning"></i>Jam Sibuk Booking</h6>
+                        <div class="text-muted small" style="font-size: .75rem;">
+                            Dihitung per: <strong class="text-warning">{{ $peakFilter['label'] }}</strong> (Jam Operasional)
+                        </div>
+                    </div>
+                    
+                    <!-- Dropdown Filter Jam Sibuk -->
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside" style="border-radius: 8px; font-size: .75rem;">
+                            <i class="bi bi-funnel"></i> Filter
+                        </button>
+                        <div class="dropdown-menu p-3 dropdown-menu-end" style="width: 260px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; border-radius: 12px;">
+                            <form action="{{ route('admin.dashboard') }}" method="GET">
+                                <!-- Preserve other filters -->
+                                <input type="hidden" name="court_filter_type" value="{{ $courtFilter['type'] }}">
+                                <input type="hidden" name="court_filter_date" value="{{ $courtFilter['date'] }}">
+                                <input type="hidden" name="court_filter_month" value="{{ $courtFilter['month'] }}">
+                                <input type="hidden" name="payment_filter_type" value="{{ $paymentFilter['type'] }}">
+                                <input type="hidden" name="payment_filter_date" value="{{ $paymentFilter['date'] }}">
+                                <input type="hidden" name="payment_filter_month" value="{{ $paymentFilter['month'] }}">
+                                
+                                <div class="mb-2">
+                                    <label class="form-label text-muted fw-600 mb-1" style="font-size: .75rem;">Rentang Waktu</label>
+                                    <select name="peak_filter_type" class="form-select form-select-sm filter-type-select" style="border-radius: 8px; font-size: .8rem;">
+                                        <option value="all" {{ $peakFilter['type'] === 'all' ? 'selected' : '' }}>Semua Waktu</option>
+                                        <option value="today" {{ $peakFilter['type'] === 'today' ? 'selected' : '' }}>Hari Ini</option>
+                                        <option value="this_month" {{ $peakFilter['type'] === 'this_month' ? 'selected' : '' }}>Bulan Ini</option>
+                                        <option value="custom_date" {{ $peakFilter['type'] === 'custom_date' ? 'selected' : '' }}>Pilih Tanggal</option>
+                                        <option value="custom_month" {{ $peakFilter['type'] === 'custom_month' ? 'selected' : '' }}>Pilih Bulan</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-2 date-input-container" style="display: {{ $peakFilter['type'] === 'custom_date' ? 'block' : 'none' }};">
+                                    <label class="form-label text-muted fw-600 mb-1" style="font-size: .75rem;">Pilih Tanggal</label>
+                                    <input type="date" name="peak_filter_date" value="{{ $peakFilter['date'] }}" class="form-control form-control-sm" style="border-radius: 8px; font-size: .8rem;">
+                                </div>
+                                
+                                <div class="mb-2 month-input-container" style="display: {{ $peakFilter['type'] === 'custom_month' ? 'block' : 'none' }};">
+                                    <label class="form-label text-muted fw-600 mb-1" style="font-size: .75rem;">Pilih Bulan</label>
+                                    <input type="month" name="peak_filter_month" value="{{ $peakFilter['month'] }}" class="form-control form-control-sm" style="border-radius: 8px; font-size: .8rem;">
+                                </div>
+                                
+                                <button type="submit" class="btn btn-warning text-dark btn-sm w-100 mt-2 d-flex align-items-center justify-content-center gap-1" style="border-radius: 8px; font-weight: 600; font-size: .8rem;">
+                                    Terapkan
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
                 <div style="position: relative; height: 280px;">
                     <canvas id="peakHoursChart"></canvas>
@@ -411,9 +509,56 @@
         {{-- Grafik Metode Pembayaran --}}
         <div class="col-lg-5">
             <div class="dash-card p-3 h-100">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-wallet2 me-2 text-purple" style="color: #7c3aed;"></i>Metode Pembayaran</h6>
-                    <span class="text-muted small">Transaksi Diverifikasi</span>
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-1 text-dark"><i class="bi bi-wallet2 me-2 text-purple" style="color: #7c3aed;"></i>Metode Pembayaran</h6>
+                        <div class="text-muted small" style="font-size: .75rem;">
+                            Dihitung per: <strong class="text-purple" style="color: #7c3aed;">{{ $paymentFilter['label'] }}</strong> (Transaksi Diverifikasi)
+                        </div>
+                    </div>
+                    
+                    <!-- Dropdown Filter Metode Pembayaran -->
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside" style="border-radius: 8px; font-size: .75rem;">
+                            <i class="bi bi-funnel"></i> Filter
+                        </button>
+                        <div class="dropdown-menu p-3 dropdown-menu-end" style="width: 260px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; border-radius: 12px;">
+                            <form action="{{ route('admin.dashboard') }}" method="GET">
+                                <!-- Preserve other filters -->
+                                <input type="hidden" name="court_filter_type" value="{{ $courtFilter['type'] }}">
+                                <input type="hidden" name="court_filter_date" value="{{ $courtFilter['date'] }}">
+                                <input type="hidden" name="court_filter_month" value="{{ $courtFilter['month'] }}">
+                                <input type="hidden" name="peak_filter_type" value="{{ $peakFilter['type'] }}">
+                                <input type="hidden" name="peak_filter_date" value="{{ $peakFilter['date'] }}">
+                                <input type="hidden" name="peak_filter_month" value="{{ $peakFilter['month'] }}">
+                                
+                                <div class="mb-2">
+                                    <label class="form-label text-muted fw-600 mb-1" style="font-size: .75rem;">Rentang Waktu</label>
+                                    <select name="payment_filter_type" class="form-select form-select-sm filter-type-select" style="border-radius: 8px; font-size: .8rem;">
+                                        <option value="all" {{ $paymentFilter['type'] === 'all' ? 'selected' : '' }}>Semua Waktu</option>
+                                        <option value="today" {{ $paymentFilter['type'] === 'today' ? 'selected' : '' }}>Hari Ini</option>
+                                        <option value="this_month" {{ $paymentFilter['type'] === 'this_month' ? 'selected' : '' }}>Bulan Ini</option>
+                                        <option value="custom_date" {{ $paymentFilter['type'] === 'custom_date' ? 'selected' : '' }}>Pilih Tanggal</option>
+                                        <option value="custom_month" {{ $paymentFilter['type'] === 'custom_month' ? 'selected' : '' }}>Pilih Bulan</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-2 date-input-container" style="display: {{ $paymentFilter['type'] === 'custom_date' ? 'block' : 'none' }};">
+                                    <label class="form-label text-muted fw-600 mb-1" style="font-size: .75rem;">Pilih Tanggal</label>
+                                    <input type="date" name="payment_filter_date" value="{{ $paymentFilter['date'] }}" class="form-control form-control-sm" style="border-radius: 8px; font-size: .8rem;">
+                                </div>
+                                
+                                <div class="mb-2 month-input-container" style="display: {{ $paymentFilter['type'] === 'custom_month' ? 'block' : 'none' }};">
+                                    <label class="form-label text-muted fw-600 mb-1" style="font-size: .75rem;">Pilih Bulan</label>
+                                    <input type="month" name="payment_filter_month" value="{{ $paymentFilter['month'] }}" class="form-control form-control-sm" style="border-radius: 8px; font-size: .8rem;">
+                                </div>
+                                
+                                <button type="submit" class="btn text-white btn-sm w-100 mt-2 d-flex align-items-center justify-content-center gap-1" style="background-color:#7c3aed; border-radius: 8px; font-weight: 600; font-size: .8rem;">
+                                    Terapkan
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
                 <div style="position: relative; height: 280px;" class="d-flex align-items-center justify-content-center">
                     <canvas id="paymentMethodChart"></canvas>
@@ -831,6 +976,26 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
     }
+
+    // Toggle input custom date/month di dropdown filter
+    document.querySelectorAll('.filter-type-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const form = this.closest('form');
+            const dateContainer = form.querySelector('.date-input-container');
+            const monthContainer = form.querySelector('.month-input-container');
+            
+            if (this.value === 'custom_date') {
+                dateContainer.style.display = 'block';
+                monthContainer.style.display = 'none';
+            } else if (this.value === 'custom_month') {
+                dateContainer.style.display = 'none';
+                monthContainer.style.display = 'block';
+            } else {
+                dateContainer.style.display = 'none';
+                monthContainer.style.display = 'none';
+            }
+        });
+    });
 });
 </script>
 @endpush

@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -29,23 +31,41 @@ class AdminProfilController extends Controller
     {
         $user = Auth::user();
 
+        // Normalisasi nomor HP sebelum validasi unik agar pencarian database akurat
+        if ($request->filled('nomor_hp')) {
+            $cleaned = preg_replace('/[^0-9]/', '', $request->nomor_hp);
+            if (str_starts_with($cleaned, '0')) {
+                $cleaned = '62' . substr($cleaned, 1);
+            } elseif (str_starts_with($cleaned, '8')) {
+                $cleaned = '62' . $cleaned;
+            }
+            $request->merge(['nomor_hp' => $cleaned]);
+        }
+
         $request->validate([
             'name'        => 'required|string|max:100',
-            'email'       => 'required|string|email|max:255|unique:users,email,' . $user->id,
-            'nomor_hp'    => 'nullable|string|max:20',
+            'nomor_hp'    => [
+                'nullable',
+                'string',
+                'min:9',
+                'max:15',
+                'regex:/^628[0-9]+$/',
+                'unique:users,nomor_hp,' . $user->id,
+            ],
             'alamat'      => 'nullable|string|max:255',
             'foto_profil' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'password'    => 'nullable|min:6|confirmed',
         ], [
             'name.required'      => 'Nama lengkap wajib diisi.',
-            'email.required'     => 'Email wajib diisi.',
-            'email.email'        => 'Format email tidak valid.',
-            'email.unique'       => 'Email sudah digunakan oleh akun lain.',
             'foto_profil.image'  => 'File foto harus berupa gambar.',
             'foto_profil.mimes'  => 'Format gambar harus jpg, jpeg, atau png.',
             'foto_profil.max'    => 'Ukuran foto maksimal 2MB.',
             'password.min'       => 'Password minimal harus 6 karakter.',
             'password.confirmed' => 'Konfirmasi password tidak cocok.',
+            'nomor_hp.unique'    => 'Nomor WhatsApp ini sudah terdaftar oleh pengguna lain.',
+            'nomor_hp.regex'     => 'Format nomor WhatsApp tidak valid. Gunakan format nomor HP Indonesia yang benar (08xxx / 628xxx).',
+            'nomor_hp.min'       => 'Nomor WhatsApp minimal 9 digit.',
+            'nomor_hp.max'       => 'Nomor WhatsApp maksimal 15 digit.',
         ]);
 
         // Upload foto profil jika ada
@@ -60,7 +80,6 @@ class AdminProfilController extends Controller
 
         // Simpan data dasar
         $user->name     = $request->name;
-        $user->email    = $request->email;
         $user->nomor_hp = $request->nomor_hp;
         $user->alamat   = $request->alamat;
 

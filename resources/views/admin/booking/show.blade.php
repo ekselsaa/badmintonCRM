@@ -128,14 +128,37 @@
                 {{-- Detail Pelanggan --}}
                 <div class="table-card p-4">
                     <h6 class="fw-bold mb-4"><i class="bi bi-person-badge me-2 text-primary"></i>Informasi Pelanggan</h6>
+                    @php
+                        $pemesanNama = $booking->is_offline ? $booking->nama_pemesan_offline : ($booking->user?->name ?? 'Pelanggan');
+                        $lapanganNama = $booking->lapangan->nama_lapangan ?? '-';
+                        $tanggalMain = $booking->jadwal ? $booking->jadwal->tanggal->format('d M Y') : '-';
+                        $jamMain = $booking->jadwal ? substr($booking->jadwal->jam_mulai, 0, 5) . ' - ' . substr($booking->jadwal->jam_selesai, 0, 5) : '-';
+
+                        if ($booking->status === 'dipesan' || $booking->status === 'selesai') {
+                            $waMessage = "Halo {$pemesanNama}, kami dari Admin Anbiyaa Sport ingin mengingatkan jadwal main Anda di {$lapanganNama} pada tanggal {$tanggalMain} pukul {$jamMain}. Sampai jumpa di lapangan!";
+                        } elseif ($booking->status === 'pending') {
+                            $waMessage = "Halo {$pemesanNama}, kami dari Admin Anbiyaa Sport ingin mengingatkan bahwa pemesanan Anda di {$lapanganNama} pada tanggal {$tanggalMain} pukul {$jamMain} berstatus PENDING (belum bayar). Harap segera selesaikan pembayaran. Terima kasih.";
+                        } elseif ($booking->status === 'menunggu') {
+                            $waMessage = "Halo {$pemesanNama}, kami dari Admin Anbiyaa Sport ingin menginfokan bahwa bukti pembayaran booking Anda untuk tanggal {$tanggalMain} pukul {$jamMain} sedang kami verifikasi. Harap tunggu konfirmasi selanjutnya.";
+                        } else {
+                            $waMessage = "Halo {$pemesanNama}, kami dari Admin Anbiyaa Sport ingin menghubungi Anda terkait booking #{$booking->id}.";
+                        }
+                    @endphp
                     @if($booking->is_offline)
                         <div class="mb-3 d-flex justify-content-between py-2" style="border-bottom:1px solid #f1f5f9">
                             <span class="text-muted small">Nama Pemesan</span>
                             <span class="fw-600 text-dark">{{ $booking->nama_pemesan_offline }} <span class="badge bg-secondary ms-1" style="font-size:.65rem">Offline</span></span>
                         </div>
-                        <div class="mb-3 d-flex justify-content-between py-2" style="border-bottom:1px solid #f1f5f9">
+                        <div class="mb-3 d-flex justify-content-between align-items-center py-2" style="border-bottom:1px solid #f1f5f9">
                             <span class="text-muted small">Nomor HP</span>
-                            <span class="fw-600 text-dark">{{ $booking->no_hp_offline ?? '-' }}</span>
+                            <span class="fw-600 text-dark d-flex align-items-center gap-2">
+                                {{ $booking->no_hp_offline ?? '-' }}
+                                @if($booking->no_hp_offline)
+                                    <a href="https://wa.me/{{ $booking->no_hp_offline }}?text={{ rawurlencode($waMessage) }}" target="_blank" class="btn btn-sm btn-success rounded-pill px-2.5 py-0.5 text-white d-inline-flex align-items-center gap-1 shadow-sm" style="font-size:0.7rem; font-weight: 600;" title="Hubungi via WhatsApp">
+                                        <i class="bi bi-whatsapp"></i> Chat
+                                    </a>
+                                @endif
+                            </span>
                         </div>
                         <div class="d-flex justify-content-between py-2">
                             <span class="text-muted small">Kategori</span>
@@ -147,12 +170,19 @@
                             <span class="fw-600 text-dark">{{ $booking->user?->name ?? '-' }} <span class="badge bg-info text-white ms-1" style="font-size:.65rem">Online</span></span>
                         </div>
                         <div class="mb-3 d-flex justify-content-between py-2" style="border-bottom:1px solid #f1f5f9">
-                            <span class="text-muted small">Email</span>
-                            <span class="fw-600 text-dark">{{ $booking->user?->email ?? '-' }}</span>
+                            <span class="text-muted small">Username</span>
+                            <span class="fw-600 text-dark">{{ $booking->user?->username ?? '-' }}</span>
                         </div>
-                        <div class="mb-3 d-flex justify-content-between py-2" style="border-bottom:1px solid #f1f5f9">
+                        <div class="mb-3 d-flex justify-content-between align-items-center py-2" style="border-bottom:1px solid #f1f5f9">
                             <span class="text-muted small">Nomor HP</span>
-                            <span class="fw-600 text-dark">{{ $booking->user?->nomor_hp ?? '-' }}</span>
+                            <span class="fw-600 text-dark d-flex align-items-center gap-2">
+                                {{ $booking->user?->nomor_hp ?? '-' }}
+                                @if($booking->user?->nomor_hp)
+                                    <a href="https://wa.me/{{ $booking->user?->nomor_hp }}?text={{ rawurlencode($waMessage) }}" target="_blank" class="btn btn-sm btn-success rounded-pill px-2.5 py-0.5 text-white d-inline-flex align-items-center gap-1 shadow-sm" style="font-size:0.7rem; font-weight: 600;" title="Hubungi via WhatsApp">
+                                        <i class="bi bi-whatsapp"></i> Chat
+                                    </a>
+                                @endif
+                            </span>
                         </div>
                         <div class="mb-3 d-flex justify-content-between py-2" style="border-bottom:1px solid #f1f5f9">
                             <span class="text-muted small">Status Member</span>

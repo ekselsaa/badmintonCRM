@@ -14,17 +14,19 @@ use App\Services\LoyaltyPointService;
  */
 class ProfilController extends Controller
 {
+    use \App\Traits\NormalizePhoneNumber;
     /** Tampilkan halaman profil pelanggan */
     public function show(Request $request, LoyaltyPointService $loyaltyService)
     {
-        $user = Auth::user()->load('bookings.lapangan');
+        $user = Auth::user();
+        $userId = $user->id;
 
-        // Statistik booking pelanggan untuk CRM
+        // Statistik booking pelanggan untuk CRM - dihitung langsung di database demi performa & efisiensi memori
         $stats = [
-            'total_booking'   => $user->bookings->count(),
-            'booking_selesai' => $user->bookings->where('status', 'selesai')->count(),
-            'booking_pending' => $user->bookings->where('status', 'pending')->count(),
-            'total_bayar'     => $user->bookings->whereIn('status', ['dipesan', 'selesai'])->sum('total_harga'),
+            'total_booking'   => \App\Models\Booking::where('user_id', $userId)->count(),
+            'booking_selesai' => \App\Models\Booking::where('user_id', $userId)->where('status', 'selesai')->count(),
+            'booking_pending' => \App\Models\Booking::where('user_id', $userId)->where('status', 'pending')->count(),
+            'total_bayar'     => (float) \App\Models\Booking::where('user_id', $userId)->whereIn('status', ['dipesan', 'selesai'])->sum('total_harga'),
         ];
 
         // Booking terbaru (5 data)
@@ -83,9 +85,21 @@ class ProfilController extends Controller
     {
         $user = Auth::user();
 
+        // Normalisasi nomor HP sebelum validasi unik agar pencarian database akurat
+        if ($request->filled('nomor_hp')) {
+            $request->merge(['nomor_hp' => $this->normalizePhoneNumber($request->nomor_hp)]);
+        }
+
         $request->validate([
             'name'      => 'required|string|max:100',
-            'nomor_hp'  => 'nullable|string|max:20',
+            'nomor_hp'  => [
+                'nullable',
+                'string',
+                'min:9',
+                'max:15',
+                'regex:/^628[0-9]+$/',
+                'unique:users,nomor_hp,' . $user->id,
+            ],
             'alamat'    => 'nullable|string|max:255',
             'foto_profil' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'password'  => 'nullable|min:6|confirmed',
@@ -95,6 +109,10 @@ class ProfilController extends Controller
             'foto_profil.max'  => 'Ukuran foto maksimal 2MB.',
             'password.min'     => 'Password minimal 6 karakter.',
             'password.confirmed' => 'Konfirmasi password tidak cocok.',
+            'nomor_hp.unique'    => 'Nomor WhatsApp ini sudah terdaftar oleh pengguna lain.',
+            'nomor_hp.regex'     => 'Format nomor WhatsApp tidak valid. Gunakan format nomor HP Indonesia yang benar (08xxx / 628xxx).',
+            'nomor_hp.min'       => 'Nomor WhatsApp minimal 9 digit.',
+            'nomor_hp.max'       => 'Nomor WhatsApp maksimal 15 digit.',
         ]);
 
         // Update foto profil jika ada file baru
@@ -132,6 +150,91 @@ class ProfilController extends Controller
         $lapangans = \App\Models\Lapangan::where('status', 'aktif')->get();
 
         return view('pelanggan.membership.index', compact('user', 'latestPayment', 'lapangans'));
+    }
+
+    /** Cek ketersediaan slot membership (AJAX) */
+    public function checkAvailability(Request $request)
+    {
+        $lapanganId = $request->query('lapangan_id');
+        $hari = strtolower($request->query('hari'));
+        $sesi = $request->query('sesi');
+
+        if (!$lapanganId || !$hari || !$sesi) {
+            return response()->json(['available' => false, 'reason' => 'Parameter tidak lengkap.']);
+        }
+
+        // Parse sesi (e.g. "07:00-10:00")
+        $sesiParts = explode('-', $sesi);
+        if (count($sesiParts) !== 2) {
+            return response()->json(['available' => false, 'reason' => 'Format sesi tidak valid.']);
+        }
+        $jamMulai = trim($sesiParts[0]);
+        $jamSelesai = trim($sesiParts[1]);
+        if ($jamSelesai === '24:00') {
+            $jamSelesai = '23:59';
+        }
+
+        // 1. Cek bentrok dengan member lain (aktif atau pending)
+        $overlapMember = \App\Models\MembershipPayment::where('lapangan_id', $lapanganId)
+            ->where('hari', $hari)
+            ->whereIn('status_verifikasi', ['menunggu', 'diverifikasi'])
+            ->where('jam_mulai', '<', $jamSelesai)
+            ->where('jam_selesai', '>', $jamMulai)
+            ->where(function ($q) {
+                $q->where('status_verifikasi', 'menunggu')
+                  ->orWhereHas('user', function ($qu) {
+                      $qu->whereIn('kategori_member', ['member', 'weekday_pagi', 'weekday_malam', 'weekend']);
+                  });
+            })
+            ->first();
+
+        if ($overlapMember) {
+            $namaMember = $overlapMember->user->name ?? 'Calon Member';
+            return response()->json([
+                'available' => false,
+                'reason' => 'Jadwal rutin tersebut sudah diisi oleh member lain (' . $namaMember . '). Silakan pilih hari, sesi, atau lapangan lain.'
+            ]);
+        }
+
+        // 2. Cek bentrok dengan booking reguler/event yang sudah ada pada 4 tanggal sesi pertama
+        $dayNameEnglish = match(strtolower($hari)) {
+            'senin'  => 'Monday',
+            'selasa' => 'Tuesday',
+            'rabu'   => 'Wednesday',
+            'kamis'  => 'Thursday',
+            'jumat'  => 'Friday',
+            'sabtu'  => 'Saturday',
+            'minggu' => 'Sunday',
+            default  => null,
+        };
+
+        if (!$dayNameEnglish) {
+            return response()->json(['available' => false, 'reason' => 'Hari tidak valid.']);
+        }
+
+        $dates = [];
+        $currentDate = \Carbon\Carbon::now();
+        for ($i = 0; $i < 4; $i++) {
+            $currentDate = $currentDate->copy()->next($dayNameEnglish);
+            $dates[] = $currentDate->format('Y-m-d');
+            $dates[] = $currentDate->format('Y-m-d 00:00:00');
+        }
+
+        $overlapBooking = \App\Models\Jadwal::where('lapangan_id', $lapanganId)
+            ->whereIn('tanggal', $dates)
+            ->where('jam_mulai', '<', $jamSelesai)
+            ->where('jam_selesai', '>', $jamMulai)
+            ->whereIn('status', ['pending', 'dipesan', 'ditutup'])
+            ->exists();
+
+        if ($overlapBooking) {
+            return response()->json([
+                'available' => false,
+                'reason' => 'Salah satu sesi rutin dalam 4 minggu ke depan sudah di-booking atau diblokir oleh pelanggan lain. Silakan pilih hari, sesi, atau lapangan lain.'
+            ]);
+        }
+
+        return response()->json(['available' => true]);
     }
 
     /** Proses pembayaran membership */
@@ -197,6 +300,56 @@ class ProfilController extends Controller
         $jamSelesai = trim($sesiParts[1]);
         if ($jamSelesai === '24:00') {
             $jamSelesai = '23:59';
+        }
+
+        // ── SINKRONISASI & VALIDASI BENTROK SLOT ──
+        // 1. Cek bentrok dengan member lain (aktif atau pending)
+        $overlapMember = \App\Models\MembershipPayment::where('lapangan_id', $request->lapangan_id)
+            ->where('hari', $hari)
+            ->whereIn('status_verifikasi', ['menunggu', 'diverifikasi'])
+            ->where('jam_mulai', '<', $jamSelesai)
+            ->where('jam_selesai', '>', $jamMulai)
+            ->where(function ($q) {
+                $q->where('status_verifikasi', 'menunggu')
+                  ->orWhereHas('user', function ($qu) {
+                      $qu->whereIn('kategori_member', ['member', 'weekday_pagi', 'weekday_malam', 'weekend']);
+                  });
+            })
+            ->first();
+
+        if ($overlapMember) {
+            $namaMember = $overlapMember->user->name ?? 'Calon Member';
+            return back()->withInput()->with('error', 'Gagal mendaftar. Jadwal rutin tersebut sudah diisi oleh member lain (' . $namaMember . '). Silakan pilih hari, sesi, atau lapangan lain.');
+        }
+
+        // 2. Cek bentrok dengan booking reguler/event yang sudah ada pada 4 tanggal sesi pertama
+        $dayNameEnglish = match(strtolower($hari)) {
+            'senin'  => 'Monday',
+            'selasa' => 'Tuesday',
+            'rabu'   => 'Wednesday',
+            'kamis'  => 'Thursday',
+            'jumat'  => 'Friday',
+            'sabtu'  => 'Saturday',
+            'minggu' => 'Sunday',
+        };
+
+        $dates = [];
+        $currentDate = \Carbon\Carbon::now();
+        for ($i = 0; $i < 4; $i++) {
+            $currentDate = $currentDate->copy()->next($dayNameEnglish);
+            $dates[] = $currentDate->format('Y-m-d');
+            $dates[] = $currentDate->format('Y-m-d 00:00:00');
+        }
+
+        $overlapBooking = \App\Models\Jadwal::where('lapangan_id', $request->lapangan_id)
+            ->whereIn('tanggal', $dates)
+            ->where('jam_mulai', '<', $jamSelesai)
+            ->where('jam_selesai', '>', $jamMulai)
+            ->whereIn('status', ['pending', 'dipesan', 'ditutup'])
+            ->exists();
+
+        if ($overlapBooking) {
+            return back()->withInput()->with('error', 'Gagal mendaftar. Salah satu sesi rutin dalam 4 minggu ke depan sudah di-booking atau diblokir oleh pelanggan lain. Silakan pilih hari, sesi, atau lapangan lain.');
         }
 
         // Hitung jumlah bayar sesuai paket

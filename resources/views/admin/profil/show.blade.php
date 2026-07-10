@@ -227,7 +227,7 @@
 
                     {{-- Data Ringkas --}}
                     <h5 class="fw-extrabold text-dark mb-1" style="letter-spacing: -0.5px;">{{ $user->name }}</h5>
-                    <p class="text-muted small mb-4"><i class="bi bi-envelope-at me-1"></i> {{ $user->email }}</p>
+                    <p class="text-muted small mb-4"><i class="bi bi-person me-1"></i> {{ $user->username }}</p>
 
                     <div style="border-top: 1px dashed #e2e8f0;" class="pt-3 mt-2 text-start">
                         <div class="d-flex justify-content-between align-items-center mb-2 small text-muted">
@@ -267,19 +267,11 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <div class="form-group-premium">
                                 <label for="name" class="form-label-premium">Nama Lengkap <span class="text-danger">*</span></label>
                                 <input type="text" name="name" id="name" class="form-control form-control-premium w-100" value="{{ old('name', $user->name) }}" required placeholder="Masukkan nama lengkap admin">
                                 <i class="bi bi-person-badge form-icon-premium"></i>
-                            </div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <div class="form-group-premium">
-                                <label for="email" class="form-label-premium">Alamat Email <span class="text-danger">*</span></label>
-                                <input type="email" name="email" id="email" class="form-control form-control-premium w-100" value="{{ old('email', $user->email) }}" required placeholder="admin@badminton.com">
-                                <i class="bi bi-envelope form-icon-premium"></i>
                             </div>
                         </div>
                     </div>
@@ -288,7 +280,7 @@
                         <div class="col-md-6">
                             <div class="form-group-premium">
                                 <label for="nomor_hp" class="form-label-premium">Nomor Telepon / WhatsApp</label>
-                                <input type="text" name="nomor_hp" id="nomor_hp" class="form-control form-control-premium w-100" value="{{ old('nomor_hp', $user->nomor_hp) }}" placeholder="Contoh: 08123456789">
+                                <input type="tel" name="nomor_hp" id="nomor_hp" class="form-control form-control-premium w-100" value="{{ old('nomor_hp', $user->nomor_hp) }}" placeholder="Contoh: 08123456789" maxlength="15" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                                 <i class="bi bi-whatsapp form-icon-premium"></i>
                             </div>
                         </div>

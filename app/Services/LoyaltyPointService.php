@@ -327,9 +327,9 @@ class LoyaltyPointService
         );
 
         DB::transaction(function () use ($user, $booking, $totalPoin, $sumber, $keterangan) {
-            // ─── CRITICAL-4: Cek ulang inside transaction dengan DB lock ────────────
-            // Mencegah race condition double-crediting jika dua proses (misalnya:
-            // admin verifikasi manual & Midtrans webhook) berjalan bersamaan.
+            // Cek ulang inside transaction dengan DB lock untuk mencegah race condition
+            // double-crediting jika dua proses (misalnya admin verifikasi manual & Midtrans webhook)
+            // berjalan bersamaan.
             $alreadyExists = PointHistory::where('booking_id', $booking->id)
                 ->where('tipe', 'kredit')
                 ->lockForUpdate()
@@ -694,5 +694,73 @@ class LoyaltyPointService
                 Log::info("[Loyalty Reward] Terbitkan voucher {$code} ({$tier}) untuk User #{$user->id} ({$user->name})");
             }
         }
+    }
+
+    /**
+     * Membatalkan/mendebit kembali poin yang pernah dikreditkan dari booking yang dibatalkan/dihapus.
+     *
+     * @param  Booking $booking
+     * @return int  Total poin yang didebit/dikurangi (0 jika tidak ada)
+     */
+    public function debitPoinDariBatalBooking(Booking $booking): int
+    {
+        if (!$booking->user_id) {
+            return 0;
+        }
+
+        $user = User::find($booking->user_id);
+        if (!$user) {
+            return 0;
+        }
+
+        // Cek total poin yang pernah dikreditkan untuk booking ini
+        $kreditList = PointHistory::where('booking_id', $booking->id)
+            ->where('tipe', 'kredit')
+            ->get();
+
+        if ($kreditList->isEmpty()) {
+            return 0;
+        }
+
+        // Hitung total poin yang pernah didebit sebelumnya untuk pembatalan booking ini (jika ada, cegah double-debit)
+        $sudahDidebit = PointHistory::where('booking_id', $booking->id)
+            ->where('tipe', 'debit')
+            ->where('sumber', 'pembatalan_booking')
+            ->exists();
+
+        if ($sudahDidebit) {
+            return 0;
+        }
+
+        $totalPoin = $kreditList->sum('jumlah_poin');
+
+        if ($totalPoin > 0) {
+            DB::transaction(function () use ($user, $booking, $totalPoin) {
+                // Kurangi saldo poin (tidak boleh kurang dari 0)
+                $user->decrement('poin_saldo', $totalPoin);
+                // Sesuaikan poin bulanan (tidak boleh kurang dari 0)
+                $user->update([
+                    'poin_bulanan' => max(0, $user->poin_bulanan - $totalPoin),
+                    'poin_saldo'   => max(0, $user->poin_saldo) // Safeguard decrement
+                ]);
+                $user->refresh();
+
+                PointHistory::create([
+                    'user_id'          => $user->id,
+                    'booking_id'       => $booking->id,
+                    'tipe'             => 'debit',
+                    'jumlah_poin'      => $totalPoin,
+                    'poin_saldo_after' => $user->poin_saldo,
+                    'sumber'           => 'pembatalan_booking',
+                    'keterangan'       => "Pembatalan/Refund Booking #{$booking->id} — Poin ditarik kembali",
+                    'expired_at'       => null,
+                    'is_expired'       => false,
+                ]);
+            });
+
+            Log::info("[Loyalty] Booking #{$booking->id} Dibatalkan/Dihapus: -{$totalPoin} poin ditarik kembali dari User #{$user->id}");
+        }
+
+        return $totalPoin;
     }
 }

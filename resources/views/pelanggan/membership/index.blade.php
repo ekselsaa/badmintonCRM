@@ -95,10 +95,10 @@
 </style>
 
 <div class="p-0">
-    <div class="row g-4 g-lg-5">
+    <div class="row g-4">
         {{-- Banner Hero --}}
         <div class="col-12">
-            <div class="table-card p-5 text-white border-0 shadow-lg" 
+            <div class="table-card p-4 p-md-5 text-white border-0 shadow-lg" 
                  style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 24px; position: relative; overflow: hidden;">
                 <div style="position: absolute; top: -20px; right: -20px; opacity: 0.1;">
                     <i class="bi bi-star-fill" style="font-size: 200px;"></i>
@@ -129,48 +129,50 @@
         </div>
 
         {{-- Alerts --}}
-        <div class="col-12">
-            @if(session('success'))
-                <div class="alert alert-success alert-dismissible fade show rounded-3 border-0 shadow-sm py-3" role="alert">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-check-circle-fill text-success fs-4 me-3"></i>
-                        <div>
-                            <strong class="d-block text-success">Berhasil!</strong>
-                            {{ session('success') }}
+        @if(session('success') || session('error') || $errors->any())
+            <div class="col-12">
+                @if(session('success'))
+                    <div class="alert alert-success alert-dismissible fade show rounded-3 border-0 shadow-sm py-3" role="alert">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-check-circle-fill text-success fs-4 me-3"></i>
+                            <div>
+                                <strong class="d-block text-success">Berhasil!</strong>
+                                {{ session('success') }}
+                            </div>
                         </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-            @if(session('error'))
-                <div class="alert alert-danger alert-dismissible fade show rounded-3 border-0 shadow-sm py-3" role="alert">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-3"></i>
-                        <div>
-                            <strong class="d-block text-danger">Gagal!</strong>
-                            {{ session('error') }}
+                @endif
+                @if(session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show rounded-3 border-0 shadow-sm py-3" role="alert">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-3"></i>
+                            <div>
+                                <strong class="d-block text-danger">Gagal!</strong>
+                                {{ session('error') }}
+                            </div>
                         </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-            @if($errors->any())
-                <div class="alert alert-danger alert-dismissible fade show rounded-3 border-0 shadow-sm py-3" role="alert">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-x-circle-fill text-danger fs-4 me-3"></i>
-                        <div>
-                            <strong class="d-block text-danger">Terjadi Kesalahan Validasi:</strong>
-                            <ul class="mb-0 mt-1 ps-3">
-                                @foreach($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
+                @endif
+                @if($errors->any())
+                    <div class="alert alert-danger alert-dismissible fade show rounded-3 border-0 shadow-sm py-3" role="alert">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-x-circle-fill text-danger fs-4 me-3"></i>
+                            <div>
+                                <strong class="d-block text-danger">Terjadi Kesalahan Validasi:</strong>
+                                <ul class="mb-0 mt-1 ps-3">
+                                    @foreach($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
                         </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
-        </div>
+                @endif
+            </div>
+        @endif
 
         {{-- Main Layout --}}
         <div class="col-lg-8">
@@ -317,9 +319,8 @@
 
                         <form action="{{ route('membership.bayar') }}" method="POST" enctype="multipart/form-data" id="form-pembayaran">
                             @csrf
-                            
-                            {{-- Pilihan Paket Teroptimasi --}}
-                            <div class="mb-4">
+                                                       {{-- Pilihan Paket Teroptimasi --}}
+                            <div class="mb-5">
                                 <label class="form-label fw-bold d-block mb-3">1. Pilih Kategori Paket Member <span class="text-danger">*</span></label>
                                 <input type="hidden" name="paket" id="input-paket" required>
                                                                <div class="row g-4">
@@ -380,13 +381,17 @@
                             </div>
 
                             {{-- Tentukan Jadwal Rutin Mingguan --}}
-                            <div class="mb-4">
+                            <div class="mb-5">
                                 <label class="form-label fw-bold d-block mb-3">2. Tentukan Jadwal Rutin Mingguan Anda <span class="text-danger">*</span></label>
-                                <div class="row g-3">
+                                <div id="step2-overlay-message" class="alert alert-warning border-0 rounded-3 py-3 px-4 mb-3 small d-flex align-items-center gap-2" style="background-color: #fffde7; color: #856404; border-radius: 12px !important;">
+                                    <i class="bi bi-info-circle-fill flex-shrink-0"></i>
+                                    <div>Silakan pilih kategori paket member (Langkah 1) terlebih dahulu untuk menentukan jadwal.</div>
+                                </div>
+                                <div class="row g-4">
                                     {{-- Lapangan --}}
                                     <div class="col-md-4">
                                         <label class="form-label small fw-bold text-secondary">Pilih Lapangan</label>
-                                        <select name="lapangan_id" id="select-lapangan" class="form-select" required onchange="checkFormStatus()">
+                                        <select name="lapangan_id" id="select-lapangan" class="form-select" required onchange="onSelectFieldsChange()" disabled>
                                             <option value="">-- Pilih Lapangan --</option>
                                             @foreach($lapangans as $lap)
                                                 <option value="{{ $lap->id }}" {{ old('lapangan_id') == $lap->id ? 'selected' : '' }}>{{ $lap->nama_lapangan }}</option>
@@ -396,7 +401,7 @@
                                     {{-- Hari --}}
                                     <div class="col-md-4">
                                         <label class="form-label small fw-bold text-secondary">Pilih Hari</label>
-                                        <select name="hari" id="select-hari" class="form-select" required onchange="onHariChange()">
+                                        <select name="hari" id="select-hari" class="form-select" required onchange="onHariChange()" disabled>
                                             <option value="">-- Pilih Hari --</option>
                                             <option value="senin">Senin</option>
                                             <option value="selasa">Selasa</option>
@@ -410,7 +415,7 @@
                                     {{-- Sesi --}}
                                     <div class="col-md-4">
                                         <label class="form-label small fw-bold text-secondary">Pilih Sesi (Shift 3 Jam)</label>
-                                        <select name="sesi" id="select-sesi" class="form-select" required onchange="checkFormStatus()" disabled>
+                                        <select name="sesi" id="select-sesi" class="form-select" required onchange="onSelectFieldsChange()" disabled>
                                             <option value="">-- Pilih Sesi --</option>
                                         </select>
                                     </div>
@@ -418,92 +423,116 @@
                                 <div class="form-text text-muted small mt-2">
                                     * Ketersediaan hari dan sesi menyesuaikan dengan kategori paket member yang dipilih.
                                 </div>
-                            </div>
-
-                            {{-- Pilihan Metode Pembayaran Teroptimasi (Hanya QRIS & Tunai) --}}
-                            <div class="mb-4">
-                                <label class="form-label fw-bold d-block mb-3">3. Pilih Metode Pembayaran <span class="text-danger">*</span></label>
-                                <input type="hidden" name="metode_pembayaran" id="input-metode" required>
                                 
-                                <div class="row g-4">
-                                    {{-- QRIS --}}
-                                    <div class="col-md-6">
-                                        <div class="payment-method-card" data-value="qris" onclick="selectPaymentMethod(this)">
-                                            <div class="rounded bg-success-subtle p-2 text-success">
-                                                <i class="bi bi-qr-code fs-4"></i>
-                                            </div>
-                                            <div>
-                                                <h6 class="fw-bold text-dark mb-0">QRIS Instan</h6>
-                                                <small class="text-muted" style="font-size: 0.72rem;">Scan QR code otomatis</small>
-                                            </div>
+                                {{-- Slot Availability Warning Alert --}}
+                                <div id="slot-warning-container" class="mt-4 d-none">
+                                    <div class="alert alert-danger border-0 rounded-3 d-flex align-items-center py-3 px-4 mb-0" style="background-color: #fef2f2;">
+                                        <i class="bi bi-exclamation-octagon-fill text-danger fs-4 me-3 flex-shrink-0"></i>
+                                        <div class="small text-danger fw-bold" id="slot-warning-message">
+                                            Jadwal rutin ini sudah terisi oleh member lain. Silakan pilih jadwal lain.
                                         </div>
                                     </div>
-                                    
-                                    {{-- Tunai --}}
-                                    <div class="col-md-6">
-                                        <div class="payment-method-card" data-value="tunai" onclick="selectPaymentMethod(this)">
-                                            <div class="rounded bg-warning-subtle p-2 text-warning" style="color: #d97706; background-color: #fef3c7;">
-                                                <i class="bi bi-cash-coin fs-4"></i>
-                                            </div>
-                                            <div>
-                                                <h6 class="fw-bold text-dark mb-0">Tunai ke Kasir</h6>
-                                                <small class="text-muted" style="font-size: 0.72rem;">Bayar cash langsung di tempat</small>
-                                            </div>
+                                </div>
+                                {{-- Slot Availability Success Alert --}}
+                                <div id="slot-success-container" class="mt-4 d-none">
+                                    <div class="alert alert-success border-0 rounded-3 d-flex align-items-center py-3 px-4 mb-0" style="background-color: #f0fdf4;">
+                                        <i class="bi bi-check-circle-fill text-success fs-4 me-3 flex-shrink-0"></i>
+                                        <div class="small text-success fw-bold">
+                                            Jadwal tersedia dan dapat dipesan!
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {{-- Wadah Instruksi QRIS --}}
-                            <div id="instruksi-qris" class="mb-4 d-none">
-                                <div class="p-4 rounded-3 text-center border-0 shadow-sm" style="background: #fafafa; border-radius: 20px !important;">
-                                    <h6 class="fw-bold mb-1 text-dark"><i class="bi bi-qr-code-scan me-2 text-primary"></i>Pindai QRIS Resmi Anbiyaa Sport</h6>
-                                    <p class="text-muted small mb-3">Scan kode QR di bawah melalui aplikasi e-wallet Anda (Gopay, OVO, Dana, ShopeePay) atau m-Banking.</p>
-                                    <div class="my-3 text-center">
-                                        <img src="{{ asset('images/pembayaran/qris.jpg') }}" alt="QRIS Anbiyaa Sport" class="img-fluid rounded border shadow-sm" style="max-width: 240px; border-radius: 12px !important; transition: all 0.3s ease;">
-                                    </div>
-                                    <p class="text-muted small mb-0 px-md-4">Simpan struk/bukti transaksi sukses dari e-wallet untuk diunggah di bawah sebagai bukti verifikasi.</p>
-                                </div>
-                            </div>
-
-                            {{-- Wadah Instruksi Tunai --}}
-                            <div id="instruksi-tunai" class="mb-4 d-none">
-                                <div class="p-3 rounded-3 border-0 shadow-sm" style="background: #eff6ff; border-radius: 20px !important;">
-                                    <h6 class="fw-bold text-primary mb-2"><i class="bi bi-info-circle-fill me-2"></i>Petunjuk Pembayaran Tunai</h6>
-                                    <p class="small text-muted mb-2">
-                                        Silakan serahkan uang iuran sesuai harga paket yang dipilih ke kasir/admin di lapangan **Anbiyaa Sport**.
-                                    </p>
-                                    <p class="small text-muted mb-0">
-                                        Setelah kasir menerima pembayaran Anda, kasir akan memberikan nota transaksi fisik atau konfirmasi verbal. Harap **unggah foto nota** tersebut atau **foto tanda terima kasir** pada form di bawah agar administrator dapat memverifikasi dan mengaktifkan akun member Anda di sistem secara permanen.
-                                    </p>
-                                </div>
-                            </div>
-
-                            {{-- Unggah Bukti Pembayaran Teroptimasi --}}
-                            <div class="mb-4 d-none" id="upload-container">
-                                <label class="form-label fw-bold mb-2">4. Unggah Bukti Pembayaran <span class="text-danger">*</span></label>
-                                
-                                <div class="upload-zone p-5 text-center" onclick="triggerFileInput()">
-                                    <input type="file" name="bukti_pembayaran" id="bukti_pembayaran" class="d-none" accept="image/*" required onchange="previewImage(this)">
+                            <div id="payment-options-container" class="d-none">
+                                {{-- Pilihan Metode Pembayaran Teroptimasi (Hanya QRIS & Tunai) --}}
+                                <div class="mb-5">
+                                    <label class="form-label fw-bold d-block mb-3">3. Pilih Metode Pembayaran <span class="text-danger">*</span></label>
+                                    <input type="hidden" name="metode_pembayaran" id="input-metode" required>
                                     
-                                    <div id="upload-prompt">
-                                        <i class="bi bi-cloud-arrow-up text-primary" style="font-size: 3rem;"></i>
-                                        <h6 class="fw-bold text-dark mt-2 mb-1">Pilih File Bukti Transaksi</h6>
-                                        <p class="text-muted small mb-0">Seret file ke sini atau klik untuk mencari gambar (JPG, JPEG, PNG, maks 2MB)</p>
+                                    <div class="row g-4">
+                                        {{-- QRIS --}}
+                                        <div class="col-md-6">
+                                            <div class="payment-method-card" data-value="qris" onclick="selectPaymentMethod(this)">
+                                                <div class="rounded bg-success-subtle p-2 text-success">
+                                                    <i class="bi bi-qr-code fs-4"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="fw-bold text-dark mb-0">QRIS Instan</h6>
+                                                    <small class="text-muted" style="font-size: 0.72rem;">Scan QR code otomatis</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        {{-- Tunai --}}
+                                        <div class="col-md-6">
+                                            <div class="payment-method-card" data-value="tunai" onclick="selectPaymentMethod(this)">
+                                                <div class="rounded bg-warning-subtle p-2 text-warning" style="color: #d97706; background-color: #fef3c7;">
+                                                    <i class="bi bi-cash-coin fs-4"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="fw-bold text-dark mb-0">Tunai ke Kasir</h6>
+                                                    <small class="text-muted" style="font-size: 0.72rem;">Bayar cash langsung di tempat</small>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
+                                </div>
+
+                                {{-- Wadah Instruksi QRIS --}}
+                                <div id="instruksi-qris" class="mb-4 d-none">
+                                    <div class="p-4 rounded-3 text-center border-0 shadow-sm" style="background: #fafafa; border-radius: 20px !important;">
+                                        <h6 class="fw-bold mb-1 text-dark"><i class="bi bi-qr-code-scan me-2 text-primary"></i>Pindai QRIS Resmi Anbiyaa Sport</h6>
+                                        <p class="text-muted small mb-3">Scan kode QR di bawah melalui aplikasi e-wallet Anda (Gopay, OVO, Dana, ShopeePay) or m-Banking.</p>
+                                        <div class="my-3 text-center">
+                                            <img src="{{ asset('images/pembayaran/qris.jpg') }}" alt="QRIS Anbiyaa Sport" class="img-fluid rounded border shadow-sm" style="max-width: 240px; border-radius: 12px !important; transition: all 0.3s ease;">
+                                        </div>
+                                        <p class="text-muted small mb-0 px-md-4">Simpan struk/bukti transaksi sukses dari e-wallet untuk diunggah di bawah sebagai bukti verifikasi.</p>
+                                    </div>
+                                </div>
+
+                                {{-- Wadah Instruksi Tunai --}}
+                                <div id="instruksi-tunai" class="mb-4 d-none">
+                                    <div class="p-3 rounded-3 border-0 shadow-sm" style="background: #eff6ff; border-radius: 20px !important;">
+                                        <h6 class="fw-bold text-primary mb-2"><i class="bi bi-info-circle-fill me-2"></i>Petunjuk Pembayaran Tunai</h6>
+                                        <p class="small text-muted mb-2">
+                                            Silakan serahkan uang iuran sesuai harga paket yang dipilih ke kasir/admin di lapangan **Anbiyaa Sport**.
+                                        </p>
+                                        <p class="small text-muted mb-0">
+                                            Setelah kasir menerima pembayaran Anda, kasir akan memberikan nota transaksi fisik atau konfirmasi verbal. Harap **unggah foto nota** tersebut atau **foto tanda terima kasir** pada form di bawah agar administrator dapat memverifikasi dan mengaktifkan akun member Anda di sistem secara permanen.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {{-- Unggah Bukti Pembayaran Teroptimasi --}}
+                                <div class="mb-5 d-none" id="upload-container">
+                                    <label class="form-label fw-bold d-block mb-3">4. Unggah Bukti Pembayaran <span class="text-danger">*</span></label>
                                     
-                                    <div id="preview-container" class="d-none mt-2">
-                                        <img id="image-preview" src="#" alt="Pratinjau Bukti Pembayaran" class="img-fluid border mb-2">
-                                        <div class="small text-primary fw-bold" id="file-name-label">Nama File</div>
-                                        <button type="button" class="btn btn-sm btn-outline-danger mt-2 px-3 rounded-pill" onclick="resetFileSelection(event)">
-                                            <i class="bi bi-trash me-1"></i>Ganti Gambar
-                                        </button>
+                                    <div class="upload-zone p-5 text-center" onclick="triggerFileInput()">
+                                        <input type="file" name="bukti_pembayaran" id="bukti_pembayaran" class="d-none" accept="image/*" required onchange="previewImage(this)">
+                                        
+                                        <div id="upload-prompt">
+                                            <i class="bi bi-cloud-arrow-up text-primary" style="font-size: 3rem;"></i>
+                                            <h6 class="fw-bold text-dark mt-2 mb-1">Pilih File Bukti Transaksi</h6>
+                                            <p class="text-muted small mb-0">Seret file ke sini atau klik untuk mencari gambar (JPG, JPEG, PNG, maks 2MB)</p>
+                                        </div>
+                                        
+                                        <div id="preview-container" class="d-none mt-2">
+                                            <img id="image-preview" src="#" alt="Pratinjau Bukti Pembayaran" class="img-fluid border mb-2">
+                                            <div class="small text-primary fw-bold" id="file-name-label">Nama File</div>
+                                            <button type="button" class="btn btn-sm btn-outline-danger mt-2 px-3 rounded-pill" onclick="resetFileSelection(event)">
+                                                <i class="bi bi-trash me-1"></i>Ganti Gambar
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="file-error-container" class="mt-3 alert alert-danger border-0 rounded-3 py-2 px-3 small d-none" style="background-color: #fef2f2; color: #dc2626; border-radius: 12px !important;">
+                                        <i class="bi bi-exclamation-circle-fill me-2"></i><span id="file-error-message"></span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="col-12 mt-4 text-end">
-                                <button type="submit" class="btn btn-primary px-5 py-2.5 rounded-pill fw-bold shadow" id="btn-submit" disabled>
+                            <div class="col-12 mt-5 text-end">
+                                <button type="submit" class="btn btn-primary px-5 py-3 rounded-pill fw-bold shadow" id="btn-submit" disabled>
                                     <i class="bi bi-check-circle-fill me-2"></i>Kirim Formulir Pembayaran
                                 </button>
                             </div>
@@ -568,6 +597,81 @@
 </div>
 
 <script>
+    let slotChecking = false;
+    let slotAvailable = false;
+
+    function onSelectFieldsChange() {
+        checkSlotAvailability();
+    }
+
+    function checkSlotAvailability() {
+        const lapSelected = document.getElementById('select-lapangan').value;
+        const hariSelected = document.getElementById('select-hari').value;
+        const sesiSelected = document.getElementById('select-sesi').value;
+        
+        const warningContainer = document.getElementById('slot-warning-container');
+        const successContainer = document.getElementById('slot-success-container');
+        const warningMessage = document.getElementById('slot-warning-message');
+        const btnSubmit = document.getElementById('btn-submit');
+        
+        // Sembunyikan alert di awal
+        warningContainer.classList.add('d-none');
+        successContainer.classList.add('d-none');
+        
+        if (!lapSelected || !hariSelected || !sesiSelected) {
+            slotAvailable = false;
+            checkFormStatus();
+            return;
+        }
+
+        slotChecking = true;
+        btnSubmit.setAttribute('disabled', 'disabled');
+        btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Memeriksa Ketersediaan...';
+
+        fetch(`/membership/check-availability?lapangan_id=${lapSelected}&hari=${hariSelected}&sesi=${sesiSelected}`)
+            .then(response => response.json())
+            .then(data => {
+                slotChecking = false;
+                btnSubmit.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Kirim Formulir Pembayaran';
+                
+                if (data.available) {
+                    slotAvailable = true;
+                    successContainer.classList.remove('d-none');
+                } else {
+                    slotAvailable = false;
+                    warningMessage.innerText = data.reason || 'Jadwal rutin ini sudah terisi atau bertabrakan.';
+                    warningContainer.classList.remove('d-none');
+                    
+                    // Reset opsi pembayaran jika jadwal tidak tersedia
+                    resetPaymentSelection();
+                }
+                checkFormStatus();
+            })
+            .catch(err => {
+                slotChecking = false;
+                slotAvailable = false;
+                btnSubmit.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Kirim Formulir Pembayaran';
+                console.error('Error checking availability:', err);
+                checkFormStatus();
+            });
+    }
+
+    function resetPaymentSelection() {
+        document.querySelectorAll('.payment-method-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        document.getElementById('input-metode').value = '';
+        document.getElementById('instruksi-qris').classList.add('d-none');
+        document.getElementById('instruksi-tunai').classList.add('d-none');
+        document.getElementById('upload-container').classList.add('d-none');
+        
+        // Reset file upload
+        document.getElementById('bukti_pembayaran').value = "";
+        document.getElementById('upload-prompt').classList.remove('d-none');
+        document.getElementById('preview-container').classList.add('d-none');
+        document.getElementById('image-preview').src = "#";
+    }
+
     // Memilih Paket Membership
     function selectPackage(element) {
         // Hapus class active dari pilihan paket lain
@@ -582,6 +686,11 @@
         const val = element.getAttribute('data-value');
         document.getElementById('input-paket').value = val;
 
+        // Aktifkan input select lapangan & hari
+        document.getElementById('select-lapangan').removeAttribute('disabled');
+        document.getElementById('select-hari').removeAttribute('disabled');
+        document.getElementById('step2-overlay-message').classList.add('d-none');
+
         // Reset hari dan sesi pilihan
         document.getElementById('select-hari').value = '';
         const sesiSelect = document.getElementById('select-sesi');
@@ -590,6 +699,13 @@
 
         // Filter opsi hari agar hanya yang sesuai ketentuan yang bisa dipilih
         updateHariOptions(val);
+
+        // Reset status ketersediaan & form pembayaran
+        slotAvailable = false;
+        slotChecking = false;
+        document.getElementById('slot-warning-container').classList.add('d-none');
+        document.getElementById('slot-success-container').classList.add('d-none');
+        resetPaymentSelection();
 
         checkFormStatus();
     }
@@ -671,33 +787,38 @@
         sesiSelect.innerHTML = '<option value="">-- Pilih Sesi --</option>';
         sesiSelect.disabled = true;
 
-        if (!paket) {
-            alert('Silakan pilih kategori paket member terlebih dahulu.');
-            hariSelect.value = '';
-            checkFormStatus();
-            return;
-        }
-
-        if (!hari) {
+        if (!paket || !hari) {
             checkFormStatus();
             return;
         }
 
         const isWeekend = ['sabtu', 'minggu'].includes(hari);
 
-        // Validasi keselarasan hari dan paket
+        // Validasi keselarasan hari dan paket (tampilkan secara inline)
+        const warningContainer = document.getElementById('slot-warning-container');
+        const warningMessage = document.getElementById('slot-warning-message');
+
         if (paket === 'weekend' && !isWeekend) {
-            alert('Paket weekend hanya boleh memilih hari Sabtu atau Minggu.');
             hariSelect.value = '';
+            warningMessage.innerText = 'Paket weekend hanya boleh memilih hari Sabtu atau Minggu.';
+            warningContainer.classList.remove('d-none');
             checkFormStatus();
             return;
         }
         if ((paket === 'weekday_pagi' || paket === 'weekday_malam') && isWeekend) {
-            alert('Paket weekday hanya boleh memilih hari Senin sampai Jumat.');
             hariSelect.value = '';
+            warningMessage.innerText = 'Paket weekday hanya boleh memilih hari Senin sampai Jumat.';
+            warningContainer.classList.remove('d-none');
             checkFormStatus();
             return;
         }
+
+        // Reset status ketersediaan & form pembayaran
+        slotAvailable = false;
+        slotChecking = false;
+        document.getElementById('slot-warning-container').classList.add('d-none');
+        document.getElementById('slot-success-container').classList.add('d-none');
+        resetPaymentSelection();
 
         let options = [];
         if (paket === 'weekday_pagi') {
@@ -741,10 +862,17 @@
     // Menampilkan pratinjau gambar bukti transfer
     function previewImage(input) {
         const file = input.files[0];
+        const errorContainer = document.getElementById('file-error-container');
+        const errorMessage = document.getElementById('file-error-message');
+
+        // Sembunyikan error kontainer di awal
+        errorContainer.classList.add('d-none');
+
         if (file) {
             // Validasi ukuran berkas (2MB = 2 * 1024 * 1024 bytes)
             if (file.size > 2 * 1024 * 1024) {
-                alert("Ukuran berkas maksimal 2MB. Berkas yang Anda pilih berukuran " + (file.size / (1024 * 1024)).toFixed(2) + "MB.");
+                errorMessage.innerText = "Ukuran berkas maksimal 2MB. Berkas yang Anda pilih berukuran " + (file.size / (1024 * 1024)).toFixed(2) + "MB.";
+                errorContainer.classList.remove('d-none');
                 resetFileSelection();
                 return;
             }
@@ -770,6 +898,7 @@
         document.getElementById('upload-prompt').classList.remove('d-none');
         document.getElementById('preview-container').classList.add('d-none');
         document.getElementById('image-preview').src = "#";
+        document.getElementById('file-error-container').classList.add('d-none');
         checkFormStatus();
     }
 
@@ -782,8 +911,16 @@
         const hariSelected = document.getElementById('select-hari').value;
         const sesiSelected = document.getElementById('select-sesi').value;
         const btnSubmit = document.getElementById('btn-submit');
+        const paymentOptionsContainer = document.getElementById('payment-options-container');
 
-        if (paketSelected && metodeSelected && fileUploaded && lapSelected && hariSelected && sesiSelected) {
+        // Tampilkan block pembayaran hanya jika slot dicek dan tersedia
+        if (slotAvailable && !slotChecking) {
+            paymentOptionsContainer.classList.remove('d-none');
+        } else {
+            paymentOptionsContainer.classList.add('d-none');
+        }
+
+        if (paketSelected && metodeSelected && fileUploaded && lapSelected && hariSelected && sesiSelected && slotAvailable && !slotChecking) {
             btnSubmit.removeAttribute('disabled');
         } else {
             btnSubmit.setAttribute('disabled', 'disabled');

@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
 
 use App\Models\User;
 use App\Models\Booking;
@@ -18,11 +20,11 @@ use Carbon\Carbon;
  */
 class AdminController extends Controller
 {
-    // ─── Dashboard Admin ──────────────────────────────────────────
+    // Dashboard Admin
     /**
      * Menampilkan statistik ringkasan untuk admin.
      */
-    public function dashboard()
+    public function dashboard(Request $request)
     {
         // cancelExpiredGracefully dihandle oleh scheduler (booking:cancel-expired setiap menit)
         // Tidak perlu dipanggil manual di sini.
@@ -38,7 +40,7 @@ class AdminController extends Controller
         $pendingVerif           = $pendingVerifBookings + $pendingVerifMembership;
 
         // Kontekstual: hari ini & bulan ini
-        $bookingHariIni  = Booking::whereDate('tanggal_booking', today())->count();
+        $bookingHariIni  = Booking::where('tanggal_booking', today()->toDateString())->count();
         $bookingBulanIni = Booking::whereMonth('tanggal_booking', now()->month)
                                   ->whereYear('tanggal_booking', now()->year)->count();
         $pendapatanBulan = Booking::whereMonth('tanggal_booking', now()->month)
@@ -65,9 +67,57 @@ class AdminController extends Controller
             ->orderBy('created_at', 'desc')
             ->take(5)->get();
 
-        // ─── DATA GRAFIK ANALYTICS (Chart.js) — Di-cache 10 menit ───
-        $chartData = Cache::remember('dashboard_chart_data', 600, function () {
-            // 1. Tren Pendapatan & Booking 6 Bulan Terakhir
+        // Filter parameters for each analytics chart (Okupansi Lapangan, Jam Sibuk Booking, Metode Pembayaran)
+        $parseFilter = function ($prefix) use ($request) {
+            $type = $request->get("{$prefix}_filter_type", 'all');
+            $date = $request->get("{$prefix}_filter_date", today()->toDateString());
+            $month = $request->get("{$prefix}_filter_month", now()->format('Y-m'));
+
+            $dateFilter = null;
+            $monthFilter = null;
+            $yearFilter = null;
+            $label = 'Semua Waktu';
+
+            if ($type === 'today') {
+                $dateFilter = today()->toDateString();
+                $label = 'Hari Ini (' . now()->translatedFormat('d M Y') . ')';
+            } elseif ($type === 'this_month') {
+                $monthFilter = now()->month;
+                $yearFilter = now()->year;
+                $label = 'Bulan Ini (' . now()->translatedFormat('F Y') . ')';
+            } elseif ($type === 'custom_date') {
+                $dateFilter = $date;
+                $label = 'Tanggal: ' . Carbon::parse($date)->translatedFormat('d M Y');
+            } elseif ($type === 'custom_month') {
+                if ($month) {
+                    $parts = explode('-', $month);
+                    if (count($parts) === 2) {
+                        $yearFilter = (int)$parts[0];
+                        $monthFilter = (int)$parts[1];
+                        $label = 'Bulan: ' . Carbon::create($yearFilter, $monthFilter, 1)->translatedFormat('F Y');
+                    }
+                }
+            }
+
+            return [
+                'type' => $type,
+                'date' => $date,
+                'month' => $month,
+                'dateFilter' => $dateFilter,
+                'monthFilter' => $monthFilter,
+                'yearFilter' => $yearFilter,
+                'label' => $label
+            ];
+        };
+
+        $courtFilter   = $parseFilter('court');
+        $peakFilter    = $parseFilter('peak');
+        $paymentFilter = $parseFilter('payment');
+
+        // Data Grafik Analytics (Chart.js) — Di-cache 10 menit
+        $cacheKey = 'dashboard_chart_data_' . md5(json_encode([$courtFilter, $peakFilter, $paymentFilter]));
+        $chartData = Cache::remember($cacheKey, 600, function () use ($courtFilter, $peakFilter, $paymentFilter) {
+            // 1. Tren Pendapatan & Booking 6 Bulan Terakhir (Tetap 6 Bulan)
             $rawRevenue = Booking::whereIn('status', ['dipesan', 'selesai'])
                 ->select(
                     DB::raw("DATE_FORMAT(tanggal_booking, '%Y-%m') as bulan"),
@@ -91,24 +141,38 @@ class AdminController extends Controller
                 ];
             }
 
+            // Helper to apply filter
+            $applyFilter = function($query, $dateCol, $filter) {
+                if ($filter['dateFilter']) {
+                    $query->where($dateCol, $filter['dateFilter']);
+                }
+                if ($filter['monthFilter'] && $filter['yearFilter']) {
+                    $query->whereMonth($dateCol, $filter['monthFilter'])
+                          ->whereYear($dateCol, $filter['yearFilter']);
+                }
+                return $query;
+            };
+
             // 2. Okupansi Lapangan
-            $courtOccupancy = Booking::whereIn('status', ['dipesan', 'selesai'])
+            $courtOccupancyQuery = Booking::whereIn('status', ['dipesan', 'selesai'])
                 ->select('lapangan_id', DB::raw('COUNT(*) as total_booking'))
                 ->with('lapangan:id,nama_lapangan')
-                ->groupBy('lapangan_id')
-                ->get()
+                ->groupBy('lapangan_id');
+            $courtOccupancyQuery = $applyFilter($courtOccupancyQuery, 'tanggal_booking', $courtFilter);
+            $courtOccupancy = $courtOccupancyQuery->get()
                 ->map(fn($item) => [
                     'nama_lapangan' => $item->lapangan->nama_lapangan ?? 'Lapangan ' . $item->lapangan_id,
                     'total_booking' => (int) $item->total_booking,
                 ]);
 
             // 3. Jam Sibuk Booking (Peak Hours)
-            $rawPeakHours = Booking::join('jadwal', 'bookings.jadwal_id', '=', 'jadwal.id')
+            $rawPeakHoursQuery = Booking::join('jadwal', 'bookings.jadwal_id', '=', 'jadwal.id')
                 ->whereIn('bookings.status', ['dipesan', 'selesai'])
                 ->select(DB::raw("HOUR(jadwal.jam_mulai) as jam"), DB::raw('COUNT(*) as total_booking'))
                 ->groupBy('jam')
-                ->orderBy('jam')
-                ->get();
+                ->orderBy('jam');
+            $rawPeakHoursQuery = $applyFilter($rawPeakHoursQuery, 'bookings.tanggal_booking', $peakFilter);
+            $rawPeakHours = $rawPeakHoursQuery->get();
 
             $chartPeakHours = [];
             for ($h = 7; $h <= 23; $h++) {
@@ -120,10 +184,14 @@ class AdminController extends Controller
             }
 
             // 4. Perbandingan Metode Pembayaran
-            $paymentMethods = Pembayaran::where('status_verifikasi', 'diverifikasi')
+            $paymentMethodsQuery = Pembayaran::where('status_verifikasi', 'diverifikasi')
                 ->select('metode_pembayaran', DB::raw('COUNT(*) as total'))
-                ->groupBy('metode_pembayaran')
-                ->get()
+                ->groupBy('metode_pembayaran');
+            if ($paymentFilter['dateFilter'] || ($paymentFilter['monthFilter'] && $paymentFilter['yearFilter'])) {
+                $paymentMethodsQuery->join('bookings', 'pembayaran.booking_id', '=', 'bookings.id');
+                $paymentMethodsQuery = $applyFilter($paymentMethodsQuery, 'bookings.tanggal_booking', $paymentFilter);
+            }
+            $paymentMethods = $paymentMethodsQuery->get()
                 ->map(function ($item) {
                     $label = 'Transfer';
                     if ($item->metode_pembayaran === 'qris')  $label = 'QRIS';
@@ -145,7 +213,8 @@ class AdminController extends Controller
             'bookingHariIni', 'bookingBulanIni', 'pendapatanBulan', 'pelangganBaru',
             'totalFasilitas', 'fasilitasHabis', 'fasilitasList',
             'bookingTerbaru', 'pembayaranPending',
-            'chartRevenue', 'courtOccupancy', 'chartPeakHours', 'paymentMethods'
+            'chartRevenue', 'courtOccupancy', 'chartPeakHours', 'paymentMethods',
+            'courtFilter', 'peakFilter', 'paymentFilter'
         ));
     }
 
@@ -165,7 +234,7 @@ class AdminController extends Controller
         ]);
     }
 
-    // ─── Kelola Semua Booking ─────────────────────────────────────
+    // Kelola Semua Booking
     public function bookingIndex(Request $request)
     {
         // cancelExpiredGracefully dihandle oleh scheduler, tidak perlu dipanggil di sini
@@ -179,7 +248,7 @@ class AdminController extends Controller
 
         // Filter berdasarkan tanggal
         if ($request->tanggal) {
-            $query->whereHas('jadwal', fn($q) => $q->where('tanggal', $request->tanggal));
+            $query->where('tanggal_booking', $request->tanggal);
         }
 
         $bookings = $query->orderBy('created_at', 'desc')->paginate(15);
@@ -187,7 +256,7 @@ class AdminController extends Controller
         // Build base query for stats — respects active date filter
         $baseStats = Booking::query();
         if ($request->tanggal) {
-            $baseStats->whereHas('jadwal', fn($q) => $q->where('tanggal', $request->tanggal));
+            $baseStats->where('tanggal_booking', $request->tanggal);
         }
 
         // Total: respects both status & date filter
@@ -217,7 +286,7 @@ class AdminController extends Controller
 
         // Jika tidak ada filter sama sekali, batasi pendapatan ke bulan ini
         if (!$request->tanggal && !$request->status) {
-            $pendapatanQuery->whereHas('jadwal', fn($q) => $q->whereMonth('tanggal', now()->month)->whereYear('tanggal', now()->year));
+            $pendapatanQuery->whereMonth('tanggal_booking', now()->month)->whereYear('tanggal_booking', now()->year);
         }
 
         $stats = [
@@ -252,8 +321,7 @@ class AdminController extends Controller
             'status' => 'required|in:pending,dikonfirmasi,dipesan,selesai,dibatalkan',
         ]);
 
-        // HIGH-6: Semua operasi (update status, sinkronisasi pembayaran, loyalty points, jadwal)
-        // dibungkus dalam satu DB transaction agar konsistensi data terjaga.
+        // Bungkus semua operasi dalam satu DB transaction agar konsistensi data terjaga.
         // Jika salah satu langkah gagal, seluruh perubahan di-rollback otomatis.
         DB::transaction(function () use ($request, $id) {
             $booking   = Booking::findOrFail($id);
@@ -274,7 +342,7 @@ class AdminController extends Controller
                         'catatan_admin'     => 'Otomatis diverifikasi karena status booking diubah menjadi ' . ucfirst($request->status) . '.'
                     ]);
 
-                    // ─── LOYALTY POINTS ─────────────────────────────────────────────
+                    // Hitung dan tambahkan Loyalty Points untuk pengguna
                     $booking->load(['jadwal', 'lapangan', 'bookingFasilitas.fasilitas']);
                     if ($booking->user_id) {
                         $loyaltyService = new LoyaltyPointService();
@@ -290,7 +358,6 @@ class AdminController extends Controller
                             ]);
                         }
                     }
-                    // ────────────────────────────────────────────────────────────────
                 } elseif (in_array($request->status, ['pending', 'dikonfirmasi'])) {
                     $booking->pembayaran->update([
                         'status_verifikasi' => 'menunggu',
@@ -329,7 +396,7 @@ class AdminController extends Controller
         return back()->with('success', 'Status booking berhasil diperbarui!');
     }
 
-    // ─── Verifikasi Pembayaran ────────────────────────────────────
+    // Verifikasi Pembayaran
     public function pembayaranIndex()
     {
         // cancelExpiredGracefully dihandle oleh scheduler, tidak perlu dipanggil di sini.
@@ -417,20 +484,18 @@ class AdminController extends Controller
                     $ob->update(['status' => 'dibatalkan']);
                 }
 
-                // ─── LOYALTY POINTS: Kredit poin setelah pembayaran terverifikasi ────────
+                // Hitung dan tambahkan Loyalty Points setelah pembayaran terverifikasi
                 $booking = $pembayaran->booking->load([
                     'jadwal',
                     'lapangan',
                     'bookingFasilitas.fasilitas',
                 ]);
 
-                // Hanya proses jika ada akun pelanggan (bukan booking offline tanpa user)
                 if ($booking->user_id) {
                     $loyaltyService = new LoyaltyPointService();
                     $poinDidapat = $loyaltyService->kreditPoinDariBooking($booking);
 
                     if ($poinDidapat > 0) {
-                        // Append catatan admin agar terlacak
                         $catatanLama = $pembayaran->catatan_admin;
                         $catatanBaru = "[Loyalty +{$poinDidapat} poin → {$booking->user->name}]";
                         $pembayaran->update([
@@ -440,7 +505,6 @@ class AdminController extends Controller
                         ]);
                     }
                 }
-                // ─────────────────────────────────────────────────────────────────
             });
         } elseif ($request->status_verifikasi === 'ditolak') {
             DB::transaction(function() use ($pembayaran) {
@@ -460,88 +524,99 @@ class AdminController extends Controller
         return back()->with('success', 'Verifikasi pembayaran berhasil!');
     }
 
-    // ─── CRM: Kelola Pelanggan ────────────────────────────────────
+    // CRM: Kelola Pelanggan
     /**
      * Menampilkan daftar semua pelanggan dengan statistik booking.
      */
     public function pelangganIndex(Request $request)
     {
+        $search = $request->search;
+
         // Fetch all online customers
-        $onlineQuery = User::where('role', 'pelanggan')
-            ->withCount('bookings')
-            ->withSum(['bookings' => function ($q) {
-                $q->whereIn('status', ['dipesan', 'selesai']);
-            }], 'total_harga');
-
-        if ($request->search) {
-            $search = $request->search;
-            $onlineQuery->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                  ->orWhere('email', 'like', '%' . $search . '%')
-                  ->orWhere('nomor_hp', 'like', '%' . $search . '%');
-            });
-        }
-        $onlineCustomers = $onlineQuery->get()->map(function($user) {
-            $user->is_offline = false;
-            $user->bookings_sum_total_harga = $user->bookings_sum_total_harga ?? 0;
-            return $user;
-        });
-
-        // Fetch all offline bookings — aggregate di SQL, bukan di PHP memory (HIGH-1)
-        $offlineQuery = Booking::where('is_offline', true)
+        $onlineQuery = DB::table('users')
             ->select(
+                'id',
+                'name',
+                'username',
+                DB::raw('null as email'),
+                'nomor_hp',
+                'alamat',
+                'poin_saldo',
+                DB::raw('0 as is_offline'),
+                DB::raw('(SELECT COUNT(*) FROM bookings WHERE bookings.user_id = users.id) as bookings_count'),
+                DB::raw('(SELECT COALESCE(SUM(total_harga), 0) FROM bookings WHERE bookings.user_id = users.id AND status IN ("dipesan", "selesai")) as bookings_sum_total_harga'),
+                'created_at'
+            )
+            ->where('role', 'pelanggan');
+
+        // Fetch all offline bookings
+        $offlineQuery = DB::table('bookings')
+            ->select(
+                DB::raw('null as id'),
                 'nama_pemesan_offline as name',
+                DB::raw('"-" as username'),
+                DB::raw('"-" as email'),
                 'no_hp_offline as nomor_hp',
+                DB::raw('"-" as alamat'),
+                DB::raw('0 as poin_saldo'),
+                DB::raw('1 as is_offline'),
                 DB::raw('COUNT(*) as bookings_count'),
                 DB::raw('SUM(CASE WHEN status IN ("dipesan","selesai") THEN total_harga ELSE 0 END) as bookings_sum_total_harga'),
                 DB::raw('MIN(created_at) as created_at')
             )
+            ->where('is_offline', true)
             ->groupBy('nama_pemesan_offline', 'no_hp_offline');
 
-        if ($request->search) {
-            $search = $request->search;
+        if ($search) {
+            $onlineQuery->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('username', 'like', '%' . $search . '%')
+                  ->orWhere('nomor_hp', 'like', '%' . $search . '%');
+            });
+
             $offlineQuery->where(function ($q) use ($search) {
-                $q->where('nama_pemesan_offline', 'like', "%{$search}%")
-                  ->orWhere('no_hp_offline', 'like', "%{$search}%");
+                $q->where('nama_pemesan_offline', 'like', '%' . $search . '%')
+                  ->orWhere('no_hp_offline', 'like', '%' . $search . '%');
             });
         }
 
-        $offlineCustomers = $offlineQuery->get()->map(function ($row) {
-            $row->id        = null;
-            $row->email     = '-';
-            $row->alamat    = '-';
-            $row->poin_saldo = 0;
-            $row->is_offline = true;
-            return $row;
-        });
+        // We do a union
+        $unionQuery = $onlineQuery->unionAll($offlineQuery);
 
-        // Merge collections
-        $combined = $onlineCustomers->concat($offlineCustomers);
+        // Now wrap in a subquery to sort and paginate
+        $combinedQuery = DB::table(DB::raw("({$unionQuery->toSql()}) as combined_customers"))
+            ->mergeBindings($unionQuery);
 
-        // Sort by bookings_count descending
-        $combined = $combined->sortByDesc('bookings_count')->values();
+        // Get Top 5 Pelanggan
+        $topPelanggan = (clone $combinedQuery)
+            ->orderBy('bookings_count', 'desc')
+            ->take(5)
+            ->get();
 
-        // Top Pelanggan (Top 5) from the combined list
-        $topPelanggan = $combined->take(5);
+        // Paginate
+        $pelanggan = $combinedQuery
+            ->orderBy('bookings_count', 'desc')
+            ->paginate(15);
 
         // Calculate counts for header
-        $totalOnline = $onlineCustomers->count();
-        $totalOffline = $offlineCustomers->count();
+        $totalOnlineQuery = DB::table('users')->where('role', 'pelanggan');
+        $totalOfflineQuery = DB::table('bookings')->where('is_offline', true);
 
-        // Paginate manually
-        $page = $request->get('page', 1);
-        $perPage = 15;
-        $offset = ($page * $perPage) - $perPage;
-        
-        $itemsForCurrentPage = $combined->slice($offset, $perPage)->all();
-        
-        $pelanggan = new \Illuminate\Pagination\LengthAwarePaginator(
-            $itemsForCurrentPage,
-            $combined->count(),
-            $perPage,
-            $page,
-            ['path' => $request->url(), 'query' => $request->query()]
-        );
+        if ($search) {
+            $totalOnlineQuery->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('username', 'like', '%' . $search . '%')
+                  ->orWhere('nomor_hp', 'like', '%' . $search . '%');
+            });
+
+            $totalOfflineQuery->where(function ($q) use ($search) {
+                $q->where('nama_pemesan_offline', 'like', '%' . $search . '%')
+                  ->orWhere('no_hp_offline', 'like', '%' . $search . '%');
+            });
+        }
+
+        $totalOnline = $totalOnlineQuery->count();
+        $totalOffline = $totalOfflineQuery->distinct('nama_pemesan_offline')->count('nama_pemesan_offline');
 
         return view('admin.crm.pelanggan', compact('pelanggan', 'topPelanggan', 'totalOnline', 'totalOffline'));
     }
@@ -568,7 +643,7 @@ class AdminController extends Controller
                     $q->where('status', 'selesai')
                       ->orWhere(function($q2) {
                           $q2->where('status', 'dipesan')
-                             ->whereHas('jadwal', fn($j) => $j->where('tanggal', '<', now()->toDateString()));
+                             ->where('tanggal_booking', '<', now()->toDateString());
                       });
                 })
                 ->count(),
@@ -594,10 +669,36 @@ class AdminController extends Controller
     {
         $pelanggan = User::where('role', 'pelanggan')->findOrFail($id);
         
-        $pelanggan->kategori_member = $pelanggan->isMember() ? 'non-member' : 'member';
-        $pelanggan->save();
+        if ($pelanggan->isMember()) {
+            // Batalkan keanggotaan
+            $pelanggan->kategori_member = 'non-member';
+            $pelanggan->membership_expires_at = null;
+            $pelanggan->save();
 
-        $status = $pelanggan->isMember() ? 'diupgrade menjadi Member' : 'diturunkan menjadi Non-Member';
+            // Bebaskan slot jadwal rutin masa depan milik member ini
+            \App\Models\Jadwal::where('tanggal', '>=', now()->toDateString())
+                ->whereIn('keterangan', [
+                    'Slot Member: ' . $pelanggan->name,
+                    'Slot Member: ' . $pelanggan->name . ' (#' . $pelanggan->id . ')'
+                ])
+                ->update([
+                    'status' => 'tersedia',
+                    'keterangan' => null
+                ]);
+
+            // Batalkan booking member masa depan (jika ada)
+            \App\Models\Booking::where('user_id', $pelanggan->id)
+                ->where('tanggal_booking', '>=', now()->toDateString())
+                ->where('catatan', 'like', 'Sesi Rutin Member%')
+                ->update(['status' => 'dibatalkan']);
+
+            $status = 'diturunkan menjadi Non-Member';
+        } else {
+            // Jadikan member default
+            $pelanggan->kategori_member = 'member';
+            $pelanggan->save();
+            $status = 'diupgrade menjadi Member';
+        }
 
         return back()->with('success', "Status pelanggan {$pelanggan->name} berhasil {$status}.");
     }
@@ -645,6 +746,16 @@ class AdminController extends Controller
         $name = $request->name;
         $nomor_hp = $request->nomor_hp;
 
+        if ($nomor_hp && $nomor_hp !== '-') {
+            $cleaned = preg_replace('/[^0-9]/', '', $nomor_hp);
+            if (str_starts_with($cleaned, '0')) {
+                $cleaned = '62' . substr($cleaned, 1);
+            } elseif (str_starts_with($cleaned, '8')) {
+                $cleaned = '62' . $cleaned;
+            }
+            $nomor_hp = $cleaned;
+        }
+
         DB::transaction(function () use ($name, $nomor_hp) {
             $query = Booking::where('is_offline', true)
                 ->where('nama_pemesan_offline', $name);
@@ -669,7 +780,7 @@ class AdminController extends Controller
         return back()->with('success', "Seluruh data booking untuk pelanggan offline '{$name}' berhasil dihapus dari sistem.");
     }
 
-    // ─── Laporan ──────────────────────────────────────────────────
+    // Laporan
     /**
      * Menampilkan laporan harian dan bulanan.
      */
@@ -818,7 +929,7 @@ class AdminController extends Controller
 
             // Header kolom
             fputcsv($handle, [
-                'No', 'Tanggal Booking', 'Pelanggan', 'Email', 'No HP',
+                'No', 'Tanggal Booking', 'Pelanggan', 'Username', 'No HP',
                 'Lapangan', 'Jam', 'Fasilitas', 'Total Harga', 'Status'
             ]);
 
@@ -827,7 +938,7 @@ class AdminController extends Controller
                     $i + 1,
                     $b->tanggal_booking->format('Y-m-d'),
                     $b->nama_pemesan,
-                    $b->user?->email ?? '-',
+                    $b->user?->username ?? '-',
                     $b->user?->nomor_hp ?? $b->no_hp_offline ?? '-',
                     $b->lapangan->nama_lapangan ?? '-',
                     $b->jadwal ? $b->jadwal->jam_mulai . ' - ' . $b->jadwal->jam_selesai : '-',
@@ -842,7 +953,7 @@ class AdminController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    // ─── Manajemen Ulasan (Testimoni) ─────────────────────────────
+    // Manajemen Ulasan (Testimoni)
     public function ulasanIndex()
     {
         $ulasans = Booking::with(['user', 'lapangan'])
@@ -878,7 +989,7 @@ class AdminController extends Controller
         
         $fasilitas = \App\Models\Fasilitas::where('is_active', true)->get();
 
-        // MEDIUM-5: Preload active bookings & pending bookings to prevent loop-query N+1 problem
+        // Preload active bookings & pending bookings to prevent loop-query N+1 problem
         $preloadedBookings = Booking::whereIn('status', ['pending', 'dikonfirmasi', 'dipesan'])
             ->where('tanggal_booking', $tanggal)
             ->where('id', '!=', $booking->id)
@@ -1005,6 +1116,11 @@ class AdminController extends Controller
                 // Hitung selisih harga
                 $selisihHarga = $totalHargaFasilitasBaru - $totalHargaFasilitasLama;
                 
+                // 0. Restore old stock before deleting pivot
+                if (in_array($booking->status, ['dipesan', 'selesai'])) {
+                    $booking->adjustFasilitasStock('increment');
+                }
+
                 // 1. Hapus pivot lama, masukkan yang baru
                 \App\Models\BookingFasilitas::where('booking_id', $booking->id)->delete();
                 foreach ($newPivots as $pivotData) {
@@ -1015,6 +1131,11 @@ class AdminController extends Controller
                 $booking->total_harga += $selisihHarga;
                 $booking->fasilitas = implode(', ', $fasilitasArr);
                 $booking->save();
+
+                // 3. Decrement new stock
+                if (in_array($booking->status, ['dipesan', 'selesai'])) {
+                    $booking->adjustFasilitasStock('decrement');
+                }
                 
                 // 3. Update pembayaran jika ada
                 if ($booking->pembayaran) {
@@ -1063,21 +1184,28 @@ class AdminController extends Controller
 
         $payment = \App\Models\MembershipPayment::findOrFail($id);
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($payment, $request) {
-            $payment->update([
-                'status_verifikasi' => $request->status_verifikasi,
-                'catatan_admin'     => $request->catatan_admin,
-                'verified_at'       => now(),
-            ]);
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($payment, $request) {
+                if ($request->status_verifikasi === 'diverifikasi') {
+                    // Cek apakah slot rutin member sudah terisi oleh member lain yang sudah diverifikasi
+                    $overlapMember = \App\Models\MembershipPayment::where('id', '!=', $payment->id)
+                        ->where('user_id', '!=', $payment->user_id) // Kecualikan perpanjangan member yang sama
+                        ->where('lapangan_id', $payment->lapangan_id)
+                        ->where('hari', $payment->hari)
+                        ->where('status_verifikasi', 'diverifikasi')
+                        ->where('jam_mulai', '<', $payment->jam_selesai)
+                        ->where('jam_selesai', '>', $payment->jam_mulai)
+                        ->whereHas('user', function($qu) {
+                            $qu->whereIn('kategori_member', ['member', 'weekday_pagi', 'weekday_malam', 'weekend']);
+                        })
+                        ->first();
 
-            if ($request->status_verifikasi === 'diverifikasi') {
-                // Otomatis ubah kategori_member user menjadi kategori paket yang dipilih
-                $payment->user->update([
-                    'kategori_member' => $payment->paket
-                ]);
+                    if ($overlapMember) {
+                        $namaMember = $overlapMember->user->name ?? 'Member Aktif';
+                        throw new \Exception('Slot rutin tersebut sudah terisi oleh member lain (' . $namaMember . ').');
+                    }
 
-                // Otomatis buat 4 booking (sesi rutin member)
-                if ($payment->hari && $payment->lapangan_id) {
+                    // Hitung 4 tanggal sesi rutin
                     $dayNameEnglish = match(strtolower($payment->hari)) {
                         'senin'  => 'Monday',
                         'selasa' => 'Tuesday',
@@ -1093,48 +1221,119 @@ class AdminController extends Controller
                     for ($i = 0; $i < 4; $i++) {
                         $currentDate = $currentDate->copy()->next($dayNameEnglish);
                         $dates[] = $currentDate->format('Y-m-d');
+                        $dates[] = $currentDate->format('Y-m-d 00:00:00');
                     }
 
-                    foreach ($dates as $index => $date) {
-                        $jadwal = \App\Models\Jadwal::updateOrCreate(
-                            [
-                                'lapangan_id' => $payment->lapangan_id,
-                                'tanggal'     => $date,
-                                'jam_mulai'   => $payment->jam_mulai,
-                            ],
-                            [
-                                'jam_selesai' => $payment->jam_selesai,
-                                'status'      => 'dipesan',
-                                'keterangan'  => 'Slot Member: ' . $payment->user->name
-                            ]
-                        );
+                    // Cek jika ada booking tetap reguler/blocked schedule yang bertabrakan di 4 tanggal tersebut
+                    $overlapBooking = \App\Models\Jadwal::where('lapangan_id', $payment->lapangan_id)
+                        ->whereIn('tanggal', $dates)
+                        ->where('jam_mulai', '<', $payment->jam_selesai)
+                        ->where('jam_selesai', '>', $payment->jam_mulai)
+                        ->whereIn('status', ['pending', 'dipesan', 'ditutup'])
+                        ->where(function ($q) use ($payment) {
+                            $q->whereNull('keterangan')
+                              ->orWhere(function ($sub) use ($payment) {
+                                  $sub->where('keterangan', '!=', 'Slot Member: ' . $payment->user->name)
+                                      ->where('keterangan', '!=', 'Slot Member: ' . $payment->user->name . ' (#' . $payment->user_id . ')');
+                              });
+                        }) // Kecualikan slot member miliknya sendiri
+                        ->exists();
 
-                        // Masukkan nominal bayar membership pada booking sesi pertama agar tercatat di laporan transaksi
-                        // Sesi rutin lainnya (index > 0) tidak dibuatkan booking record (transaksi 0) untuk menghindari data sampah.
-                        if ($index === 0) {
-                            $booking = \App\Models\Booking::create([
-                                'user_id'         => $payment->user_id,
-                                'jadwal_id'       => $jadwal->id,
-                                'lapangan_id'     => $payment->lapangan_id,
-                                'tanggal_booking' => $date,
-                                'total_harga'     => $payment->jumlah_bayar,
-                                'status'          => 'dipesan',
-                                'catatan'         => 'Sesi Rutin Member (Paket ' . ucfirst($payment->paket) . ')',
-                            ]);
+                    if ($overlapBooking) {
+                        throw new \Exception('Salah satu sesi dalam 4 minggu ke depan sudah terpesan (dipesan/ditutup) oleh pelanggan lain.');
+                    }
+                }
 
-                            $booking->pembayaran()->create([
-                                'jumlah_bayar'      => $payment->jumlah_bayar,
-                                'metode_pembayaran' => $payment->metode_pembayaran,
-                                'status_verifikasi' => 'diverifikasi',
-                                'catatan_admin'     => 'Auto-generated dari verifikasi membership #' . $payment->id,
-                                'verified_at'       => now(),
-                            ]);
+                $payment->update([
+                    'status_verifikasi' => $request->status_verifikasi,
+                    'catatan_admin'     => $request->catatan_admin,
+                    'verified_at'       => now(),
+                ]);
+
+                if ($request->status_verifikasi === 'diverifikasi') {
+                    // Hitung tanggal kedaluwarsa baru (tambah 30 hari)
+                    $currentUser = $payment->user;
+                    $currentExpiry = $currentUser->membership_expires_at;
+
+                    if ($currentExpiry && $currentExpiry->isFuture()) {
+                        $newExpiry = $currentExpiry->copy()->addDays(30);
+                    } else {
+                        $newExpiry = now()->addDays(30);
+                    }
+
+                    // Otomatis ubah kategori_member user menjadi kategori paket yang dipilih dan perbarui masa aktif
+                    $currentUser->update([
+                        'kategori_member'       => $payment->paket,
+                        'membership_expires_at' => $newExpiry,
+                    ]);
+
+                    // Otomatis buat 4 booking (sesi rutin member)
+                    if ($payment->hari && $payment->lapangan_id) {
+                        $dayNameEnglish = match(strtolower($payment->hari)) {
+                            'senin'  => 'Monday',
+                            'selasa' => 'Tuesday',
+                            'rabu'   => 'Wednesday',
+                            'kamis'  => 'Thursday',
+                            'jumat'  => 'Friday',
+                            'sabtu'  => 'Saturday',
+                            'minggu' => 'Sunday',
+                        };
+
+                        $dates = [];
+                        $currentDate = \Carbon\Carbon::now();
+                        for ($i = 0; $i < 4; $i++) {
+                            $currentDate = $currentDate->copy()->next($dayNameEnglish);
+                            $dates[] = $currentDate->format('Y-m-d');
+                        }
+
+                        foreach ($dates as $index => $date) {
+                            $jadwal = \App\Models\Jadwal::updateOrCreate(
+                                [
+                                    'lapangan_id' => $payment->lapangan_id,
+                                    'tanggal'     => \Carbon\Carbon::parse($date),
+                                    'jam_mulai'   => $payment->jam_mulai,
+                                ],
+                                [
+                                    'jam_selesai' => $payment->jam_selesai,
+                                    'status'      => 'dipesan',
+                                    'keterangan'  => 'Slot Member: ' . $payment->user->name . ' (#' . $payment->user_id . ')'
+                                ]
+                            );
+
+                            // Batalkan booking reguler yang statusnya 'pending' pada jadwal sesi ini
+                            \App\Models\Booking::where('jadwal_id', $jadwal->id)
+                                ->where('status', 'pending')
+                                ->update(['status' => 'dibatalkan']);
+
+                            // Masukkan nominal bayar membership pada booking sesi pertama agar tercatat di laporan transaksi
+                            // Sesi rutin lainnya (index > 0) tidak dibuatkan booking record (transaksi 0) untuk menghindari data sampah.
+                            if ($index === 0) {
+                                $booking = \App\Models\Booking::create([
+                                    'user_id'         => $payment->user_id,
+                                    'jadwal_id'       => $jadwal->id,
+                                    'lapangan_id'     => $payment->lapangan_id,
+                                    'tanggal_booking' => $date,
+                                    'total_harga'     => $payment->jumlah_bayar,
+                                    'status'          => 'dipesan',
+                                    'catatan'         => 'Sesi Rutin Member (Paket ' . ucfirst($payment->paket) . ')',
+                                ]);
+
+                                $booking->pembayaran()->create([
+                                    'jumlah_bayar'      => $payment->jumlah_bayar,
+                                    'metode_pembayaran' => $payment->metode_pembayaran,
+                                    'status_verifikasi' => 'diverifikasi',
+                                    'catatan_admin'     => 'Auto-generated dari verifikasi membership #' . $payment->id,
+                                    'verified_at'       => now(),
+                                ]);
+                            }
                         }
                     }
                 }
-            }
-        });
+            });
 
-        return back()->with('success', 'Verifikasi pembayaran membership berhasil diperbarui!');
+            return back()->with('success', 'Verifikasi pembayaran membership berhasil diperbarui!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal verifikasi pembayaran membership: ' . $e->getMessage());
+        }
     }
 }

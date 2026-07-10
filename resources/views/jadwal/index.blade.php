@@ -464,9 +464,15 @@ body {
         <div class="d-flex align-items-center gap-2">
             <a href="{{ route('home') }}" class="btn btn-sm" style="border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.73);font-size:.75rem;border-radius:50px;padding:.33rem .9rem;transition:all 0.2s;background:rgba(255,255,255,0.05)" onmouseover="this.style.color='#fff';this.style.borderColor='rgba(255,255,255,0.4)';this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.color='rgba(255,255,255,0.73)';this.style.borderColor='rgba(255,255,255,0.15)';this.style.background='rgba(255,255,255,0.05)'"><i class="bi bi-house me-1"></i>Beranda</a>
             @auth
-                <a href="{{ route('booking.create') }}" class="btn btn-sm text-white" style="background:linear-gradient(135deg,#2563eb,#0ea5e9);font-size:.75rem;border-radius:50px;padding:.35rem 1.15rem;border:none;font-weight:700;box-shadow:0 4px 12px rgba(37,99,235,0.35);transition:all 0.25s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 16px rgba(37,99,235,0.5)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(37,99,235,0.35)'">
-                    <i class="bi bi-calendar-plus me-1"></i>Booking
-                </a>
+                @if(auth()->user()->isAdmin())
+                    <a href="{{ route('admin.dashboard') }}" class="btn btn-sm text-white" style="background:linear-gradient(135deg,#2563eb,#0ea5e9);font-size:.75rem;border-radius:50px;padding:.35rem 1.15rem;border:none;font-weight:700;box-shadow:0 4px 12px rgba(37,99,235,0.35);transition:all 0.25s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 16px rgba(37,99,235,0.5)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(37,99,235,0.35)'">
+                        <i class="bi bi-speedometer2 me-1"></i>Panel Admin
+                    </a>
+                @else
+                    <a href="{{ route('booking.create') }}" class="btn btn-sm text-white" style="background:linear-gradient(135deg,#2563eb,#0ea5e9);font-size:.75rem;border-radius:50px;padding:.35rem 1.15rem;border:none;font-weight:700;box-shadow:0 4px 12px rgba(37,99,235,0.35);transition:all 0.25s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 16px rgba(37,99,235,0.5)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(37,99,235,0.35)'">
+                        <i class="bi bi-calendar-plus me-1"></i>Booking
+                    </a>
+                @endif
             @else
                 <a href="{{ route('login') }}" class="btn btn-sm text-white" style="background:linear-gradient(135deg,#2563eb,#0ea5e9);font-size:.75rem;border-radius:50px;padding:.35rem 1.15rem;border:none;font-weight:700;box-shadow:0 4px 12px rgba(37,99,235,0.35);transition:all 0.25s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 16px rgba(37,99,235,0.5)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 12px rgba(37,99,235,0.35)'">
                     <i class="bi bi-box-arrow-in-right me-1"></i>Masuk
@@ -662,9 +668,14 @@ body {
             <div class="footer-nav d-flex align-items-center gap-3 flex-wrap">
                 <a href="{{ route('home') }}">Beranda</a>
                 <a href="{{ route('jadwal.index') }}">Jadwal</a>
-                @auth <a href="{{ route('booking.index') }}">Booking Saya</a> @endauth
+                @auth
+                    @if(auth()->user()->isAdmin())
+                        <a href="{{ route('admin.dashboard') }}">Panel Admin</a>
+                    @else
+                        <a href="{{ route('booking.index') }}">Booking Saya</a>
+                    @endif
+                @endauth
                 @guest <a href="{{ route('register') }}">Daftar</a> @endguest
-                <a href="#">Hubungi Kami</a>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <a href="https://www.instagram.com/goranbiyaa_01" target="_blank" class="footer-link" title="Instagram"><i class="bi bi-instagram"></i></a>

@@ -226,6 +226,7 @@
 </style>
 
 <script>
+    sessionStorage.removeItem('booking_form_state');
     let selectedRatings = {};
 
     function setRatingText(id, text) {

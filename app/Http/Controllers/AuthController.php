@@ -13,29 +13,42 @@ use Illuminate\Support\Facades\Hash;
  */
 class AuthController extends Controller
 {
-    // ─── Tampilkan Form Login ─────────────────────────────────────
+    use \App\Traits\NormalizePhoneNumber;
+    // Tampilkan Form Login
     public function showLogin()
     {
         return view('auth.login');
     }
 
-    // ─── Proses Login ─────────────────────────────────────────────
+    // Proses Login
     public function login(Request $request)
     {
         // Validasi input form login
         $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required|min:8',
+            'username' => 'required|string',
+            'password' => 'required|string',
         ], [
-            'email.required'    => 'Email wajib diisi.',
-            'email.email'       => 'Format email tidak valid.',
+            'username.required' => 'Username atau No. WhatsApp wajib diisi.',
             'password.required' => 'Password wajib diisi.',
-            'password.min'      => 'Password minimal 8 karakter.',
         ]);
 
-        // Coba autentikasi dengan kredensial yang diberikan
-        $credentials = $request->only('email', 'password');
+        $loginInput = $request->input('username');
+        $password = $request->input('password');
 
+        // Tentukan tipe login (nomor_hp atau username)
+        $fieldType = is_numeric($loginInput) ? 'nomor_hp' : 'username';
+
+        // Normalisasi nomor HP jika input bertipe nomor
+        if ($fieldType === 'nomor_hp') {
+            $loginInput = $this->normalizePhoneNumber($loginInput);
+        }
+
+        $credentials = [
+            $fieldType => $loginInput,
+            'password' => $password,
+        ];
+
+        // Coba autentikasi dengan kredensial yang diberikan
         if (Auth::attempt($credentials, $request->has('remember'))) {
             $request->session()->regenerate();
 
@@ -62,24 +75,29 @@ class AuthController extends Controller
 
         // Jika gagal login
         return back()->withErrors([
-            'email' => 'Email atau password salah.',
-        ])->withInput($request->only('email'));
+            'username' => 'Kredensial yang Anda masukkan salah.',
+        ])->withInput($request->only('username'));
     }
 
-    // ─── Tampilkan Form Register ──────────────────────────────────
+    // Tampilkan Form Register
     public function showRegister()
     {
         return view('auth.register');
     }
 
-    // ─── Proses Registrasi ────────────────────────────────────────
+    // Proses Registrasi
     public function register(Request $request)
     {
+        // Normalisasi nomor HP sebelum validasi unik agar pencarian database akurat
+        if ($request->filled('nomor_hp')) {
+            $request->merge(['nomor_hp' => $this->normalizePhoneNumber($request->nomor_hp)]);
+        }
+
         // Validasi input form registrasi
         $request->validate([
             'name'      => 'required|string|max:255',
-            'email'     => 'required|email|unique:users,email',
-            // MEDIUM-2: Password minimal 8 karakter, huruf besar+kecil, dan angka
+            'username'  => 'required|string|max:255|unique:users,username|alpha_dash',
+            // Password minimal 8 karakter, huruf besar+kecil, dan angka
             'password'  => [
                 'required',
                 'min:8',
@@ -89,21 +107,34 @@ class AuthController extends Controller
                     ->mixedCase()
                     ->numbers(),
             ],
-            'nomor_hp'  => 'nullable|string|max:15',
+            'nomor_hp'  => [
+                'required',
+                'string',
+                'min:9',
+                'max:15',
+                'regex:/^628[0-9]+$/',
+                'unique:users,nomor_hp',
+            ],
             'alamat'    => 'nullable|string|max:500',
         ], [
             'name.required'      => 'Nama wajib diisi.',
-            'email.required'     => 'Email wajib diisi.',
-            'email.unique'       => 'Email sudah terdaftar.',
+            'username.required'  => 'Username wajib diisi.',
+            'username.unique'    => 'Username sudah terdaftar.',
+            'username.alpha_dash'=> 'Username hanya boleh berisi huruf, angka, strip, dan garis bawah.',
             'password.required'  => 'Password wajib diisi.',
             'password.confirmed' => 'Konfirmasi password tidak cocok.',
             'password.min'       => 'Password minimal 8 karakter.',
+            'nomor_hp.required'  => 'Nomor WhatsApp wajib diisi.',
+            'nomor_hp.unique'    => 'Nomor WhatsApp ini sudah terdaftar.',
+            'nomor_hp.regex'     => 'Format nomor WhatsApp tidak valid. Gunakan format nomor HP Indonesia yang benar (08xxx / 628xxx).',
+            'nomor_hp.min'       => 'Nomor WhatsApp minimal 9 digit.',
+            'nomor_hp.max'       => 'Nomor WhatsApp maksimal 15 digit.',
         ]);
 
         // Buat user baru dengan role pelanggan
         $user = User::create([
             'name'      => $request->name,
-            'email'     => $request->email,
+            'username'  => $request->username,
             'password'  => Hash::make($request->password),
             'role'      => 'pelanggan', // Default role: pelanggan
             'nomor_hp'  => $request->nomor_hp,
@@ -127,7 +158,7 @@ class AuthController extends Controller
             ->with('success', 'Registrasi berhasil! Selamat datang, ' . $user->name . '!');
     }
 
-    // ─── Logout ───────────────────────────────────────────────────
+    // Logout
     public function logout(Request $request)
     {
         Auth::logout();

@@ -42,7 +42,7 @@
             <table class="table table-hover align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th>#</th>
+                        <th>No.</th>
                         <th>Pelanggan</th>
                         <th>Paket Membership</th>
                         <th>Jumlah Bayar</th>
@@ -60,7 +60,7 @@
                         {{-- Pelanggan --}}
                         <td>
                             <div class="fw-600">{{ $p->user?->name ?? '-' }}</div>
-                            <small class="text-muted">{{ $p->user?->email ?? '-' }}</small>
+                            <small class="text-muted">{{ $p->user?->username ?? '-' }}</small>
                             @if($p->user?->nomor_hp)
                                 <br><small class="text-muted"><i class="bi bi-telephone me-1"></i>{{ $p->user->nomor_hp }}</small>
                             @endif

@@ -42,7 +42,7 @@
             <table class="table table-hover align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th>#</th>
+                        <th>No.</th>
                         <th>Pelanggan</th>
                         <th>Lapangan & Jadwal</th>
                         <th>Jumlah Bayar</th>
@@ -66,7 +66,7 @@
                         {{-- Pelanggan --}}
                         <td>
                             <div class="fw-600">{{ $p->booking?->user?->name ?? '-' }}</div>
-                            <small class="text-muted">{{ $p->booking?->user?->email ?? '-' }}</small>
+                            <small class="text-muted">{{ $p->booking?->user?->username ?? '-' }}</small>
                         </td>
 
                         {{-- Lapangan & Jadwal --}}

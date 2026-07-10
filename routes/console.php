@@ -33,3 +33,6 @@ Schedule::command('loyalty:reset-monthly-points')->monthlyOn(1, '00:00');
 
 // Tandai voucher yang sudah melewati masa berlaku (tiap hari 00:10)
 Schedule::command('loyalty:check-expired-vouchers')->dailyAt('00:10');
+
+// Cek masa aktif member yang kedaluwarsa (tiap hari jam 00:05)
+Schedule::command('membership:check-expiry')->dailyAt('00:05');

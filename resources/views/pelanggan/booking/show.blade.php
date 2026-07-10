@@ -401,7 +401,10 @@ document.querySelectorAll('input[name="metode_pembayaran"]').forEach(function(ra
 });
 
 // Jalankan saat halaman pertama kali dimuat
-window.addEventListener('DOMContentLoaded', refreshPaymentInfo);
+window.addEventListener('DOMContentLoaded', function() {
+    refreshPaymentInfo();
+    sessionStorage.removeItem('booking_form_state');
+});
 
 // ── Countdown Timer Pembayaran ──
 @php

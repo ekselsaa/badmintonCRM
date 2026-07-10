@@ -157,15 +157,7 @@ body, select, input, textarea, button, h6, label {
                                     <div class="d-flex flex-column gap-2 mt-2">
                                         @foreach($fasilitas_list as $f)
                                         @php
-                                            $val = 0;
-                                            if(isset($booking)) {
-                                                $arr = explode(', ', $booking->fasilitas);
-                                                foreach($arr as $item) {
-                                                    if(str_contains($item, $f->nama)) {
-                                                        $val = (int) filter_var($item, FILTER_SANITIZE_NUMBER_INT);
-                                                    }
-                                                }
-                                            }
+                                            $val = $booking->bookingFasilitas->firstWhere('fasilitas_id', $f->id)?->jumlah ?? 0;
                                         @endphp
                                         <div class="d-flex flex-column p-2 rounded-3 border bg-white shadow-sm mb-2" style="font-size: 0.85rem;">
                                             <div class="d-flex align-items-center justify-content-between">
@@ -226,31 +218,33 @@ body, select, input, textarea, button, h6, label {
 
                         <div id="occupiedSchedulesList">
                             @if($jadwals->count() > 0)
-                            <div class="row g-3">
+                            <div class="row g-2">
                                 @foreach($jadwals as $j)
-                                <div class="col-sm-6 col-lg-12 col-xl-6">
-                                    <div class="stat-card" style="opacity: 0.85; background-color: #f8fafc; border: 1px solid {{ $j->status === 'pending' ? '#fde68a' : '#fecaca' }};">
-                                        <div class="d-flex align-items-start justify-content-between mb-2">
-                                            <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">{{ $j->lapangan->nama_lapangan }}</h6>
+                                <div class="col-12">
+                                    <div class="stat-card p-3 shadow-none border" style="opacity: 0.85; background-color: #f8fafc; border-color: {{ $j->status === 'pending' ? '#fde68a' : '#fecaca' }} !important;">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div>
+                                                <h6 class="fw-bold mb-1" style="font-size: 0.82rem; color: #1e293b;">{{ $j->lapangan->nama_lapangan }}</h6>
+                                                <div class="fw-bold {{ $j->status === 'pending' ? 'text-warning' : 'text-danger' }}" style="font-size:0.85rem">
+                                                    <i class="bi bi-clock me-1"></i>
+                                                    {{ \Carbon\Carbon::parse($j->jam_mulai)->format('H:i') }} - {{ \Carbon\Carbon::parse($j->jam_selesai)->format('H:i') }}
+                                                </div>
+                                            </div>
                                             @if($j->status === 'pending')
                                                 <span class="badge" style="background:#fef3c7;color:#92400e; font-size: 0.65rem;">Pending</span>
                                             @else
-                                                <span class="badge bg-danger" style="font-size: 0.65rem;">Dipesan</span>
+                                                <span class="badge bg-danger" style="font-size: 0.65rem;">{{ $j->keterangan ?: 'Dipesan' }}</span>
                                             @endif
-                                        </div>
-                                        <div class="fw-bold {{ $j->status === 'pending' ? 'text-warning' : 'text-danger' }} mt-2" style="font-size:1rem">
-                                            <i class="bi bi-clock me-1"></i>
-                                            {{ \Carbon\Carbon::parse($j->jam_mulai)->format('H:i') }} - {{ \Carbon\Carbon::parse($j->jam_selesai)->format('H:i') }}
                                         </div>
                                     </div>
                                 </div>
                                 @endforeach
                             </div>
                             @else
-                            <div class="p-5 text-center" style="border: 2px dashed #cbd5e1; border-radius: 16px;">
-                                <i class="bi bi-calendar2-check fs-1 text-success d-block mb-3"></i>
-                                <h6 class="text-success fw-bold">Semua Jadwal Kosong!</h6>
-                                <p class="text-muted small mb-0">Belum ada lapangan yang dibooking pada tanggal ini.</p>
+                            <div class="p-4 text-center text-muted" style="border: 2px dashed #e2e8f0; border-radius: 12px; margin-top: 10px;">
+                                <i class="bi bi-calendar2-check fs-3 text-success d-block mb-2"></i>
+                                <h6 class="text-success fw-bold" style="font-size: 0.85rem;">Jadwal Kosong</h6>
+                                <p class="text-muted small mb-0" style="font-size: 0.72rem;">Belum ada lapangan yang dibooking pada tanggal ini.</p>
                             </div>
                             @endif
                         </div>
@@ -354,15 +348,18 @@ function disablePastHours() {
         const optHour = parseInt(opt.value.split(':')[0]);
         
         // Cek apakah ini opsi awal yang dibooking
+        const selectEl = opt.closest('select');
+        const selectName = selectEl ? selectEl.getAttribute('name') : '';
+        
         const isInitialOption = (dateVal === initialTanggal && 
-            ((opt.parentElement.name === 'jam_mulai' && opt.value === initialJamMulai) || 
-             (opt.parentElement.name === 'jam_selesai' && opt.value === initialJamSelesai)));
+            ((selectName === 'jam_mulai' && opt.value === initialJamMulai) || 
+             (selectName === 'jam_selesai' && opt.value === initialJamSelesai)));
 
         if ((isPast && !isInitialOption) || (isToday && optHour <= currentHour && !isInitialOption)) {
             opt.disabled = true;
             // Jika option yang terpilih ter-disable, reset selectnya
-            if (opt.selected) {
-                opt.parentElement.value = '';
+            if (opt.selected && selectEl) {
+                selectEl.value = '';
             }
         } else {
             opt.disabled = false;
@@ -566,7 +563,7 @@ function rebuildOccupiedSchedulesList(jadwals) {
     if (!container) return;
 
     if (jadwals.length > 0) {
-        let html = '<div class="row g-3">';
+        let html = '<div class="row g-2">';
         jadwals.forEach(j => {
             const isPending = j.status === 'pending';
             const borderWarna = isPending ? '#fde68a' : '#fecaca';
@@ -586,15 +583,16 @@ function rebuildOccupiedSchedulesList(jadwals) {
             const jamSelesai = formatTime(j.jam_selesai);
 
             html += `
-                <div class="col-sm-6 col-lg-12 col-xl-6">
-                    <div class="stat-card" style="opacity: 0.85; background-color: #f8fafc; border: 1px solid ${borderWarna};">
-                        <div class="d-flex align-items-start justify-content-between mb-2">
-                            <h6 class="fw-bold mb-0" style="font-size: 0.9rem;">${j.lapangan ? j.lapangan.nama_lapangan : 'Lapangan'}</h6>
+                <div class="col-12">
+                    <div class="stat-card p-3 shadow-none border" style="opacity: 0.85; background-color: #f8fafc; border-color: ${borderWarna} !important;">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6 class="fw-bold mb-1" style="font-size: 0.82rem; color: #1e293b;">${j.lapangan ? j.lapangan.nama_lapangan : 'Lapangan'}</h6>
+                                <div class="fw-bold ${textWarna}" style="font-size:0.85rem">
+                                    <i class="bi bi-clock me-1"></i> ${jamMulai} - ${jamSelesai}
+                                </div>
+                            </div>
                             ${badgeHtml}
-                        </div>
-                        <div class="fw-bold ${textWarna} mt-2" style="font-size:1rem">
-                            <i class="bi bi-clock me-1"></i>
-                            ${jamMulai} - ${jamSelesai}
                         </div>
                     </div>
                 </div>
@@ -604,10 +602,10 @@ function rebuildOccupiedSchedulesList(jadwals) {
         container.innerHTML = html;
     } else {
         container.innerHTML = `
-            <div class="p-5 text-center" style="border: 2px dashed #cbd5e1; border-radius: 16px;">
-                <i class="bi bi-calendar2-check fs-1 text-success d-block mb-3"></i>
-                <h6 class="text-success fw-bold">Semua Jadwal Kosong!</h6>
-                <p class="text-muted small mb-0">Belum ada lapangan yang dibooking pada tanggal ini.</p>
+            <div class="p-4 text-center text-muted" style="border: 2px dashed #e2e8f0; border-radius: 12px; margin-top: 10px;">
+                <i class="bi bi-calendar2-check fs-3 text-success d-block mb-2"></i>
+                <h6 class="text-success fw-bold" style="font-size: 0.85rem;">Jadwal Kosong</h6>
+                <p class="text-muted small mb-0" style="font-size: 0.72rem;">Belum ada lapangan yang dibooking pada tanggal ini.</p>
             </div>
         `;
     }

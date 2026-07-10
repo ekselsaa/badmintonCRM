@@ -716,9 +716,15 @@
                     </p>
                     <div class="hero-actions d-flex gap-3 flex-wrap justify-content-center mb-5">
                         @auth
-                            <a href="{{ route('booking.index') }}" class="btn-primary-hero">
-                                <i class="bi bi-calendar-plus"></i> Booking Sekarang
-                            </a>
+                            @if(auth()->user()->isAdmin())
+                                <a href="{{ route('admin.dashboard') }}" class="btn-primary-hero">
+                                    <i class="bi bi-speedometer2"></i> Panel Admin
+                                </a>
+                            @else
+                                <a href="{{ route('booking.index') }}" class="btn-primary-hero">
+                                    <i class="bi bi-calendar-plus"></i> Booking Sekarang
+                                </a>
+                            @endif
                         @else
                             <a href="{{ route('login') }}" class="btn-primary-hero">
                                 <i class="bi bi-box-arrow-in-right"></i> Masuk &amp; Booking
@@ -868,10 +874,12 @@
                             </a>
                             @if($isAktif)
                                 @auth
-                                    <a href="{{ route('booking.index', ['lapangan_id' => $l->id]) }}"
-                                       class="btn btn-primary rounded-pill px-3 fw-700" style="font-size:.83rem;">
-                                        <i class="bi bi-calendar-plus me-1"></i>Booking
-                                    </a>
+                                    @if(auth()->user()->isPelanggan())
+                                        <a href="{{ route('booking.index', ['lapangan_id' => $l->id]) }}"
+                                           class="btn btn-primary rounded-pill px-3 fw-700" style="font-size:.83rem;">
+                                            <i class="bi bi-calendar-plus me-1"></i>Booking
+                                        </a>
+                                    @endif
                                 @endauth
                             @else
                                 <button class="btn btn-secondary rounded-pill px-3 disabled" disabled style="font-size:.83rem">
@@ -1034,7 +1042,7 @@
                         <div class="testi-avatar" style="background:linear-gradient({{ $grad }})">{{ $initial }}</div>
                         <div>
                             <div class="fw-bold" style="font-size:.85rem">{{ $nama }}</div>
-                            <div class="text-muted" style="font-size:.73rem">{{ $t->user ? 'Member' : 'Offline' }}</div>
+                            <div class="text-muted" style="font-size:.73rem">{{ $t->user ? ($t->user->isMember() ? 'Member' : 'Pelanggan') : 'Offline' }}</div>
                         </div>
                     </div>
                 </div>
@@ -1262,19 +1270,26 @@
                         Sudah memiliki akun? <a href="{{ route('login') }}" class="text-info fw-bold text-decoration-none">Masuk di sini</a>
                     </div>
                     @else
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <a href="{{ route('loyalty.index') }}" class="btn btn-outline-light w-100 py-2 fw-bold rounded-3" style="font-size: 0.83rem; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.03);">
-                                <i class="bi bi-person-badge-fill me-1 text-warning"></i> Loyalty Saya
-                            </a>
-                        </div>
-                        <div class="col-6">
-                            <a href="{{ route('booking.index') }}" class="btn w-100 py-2 fw-bold rounded-3 text-dark d-flex align-items-center justify-content-center gap-2" 
+                        @if(auth()->user()->isAdmin())
+                            <a href="{{ route('admin.dashboard') }}" class="btn w-100 py-2 fw-bold rounded-3 text-dark d-flex align-items-center justify-content-center gap-2" 
                                style="background: linear-gradient(135deg, #f59e0b, #fbbf24); box-shadow: 0 4px 18px rgba(245,158,11,.25); border:none; font-size: 0.83rem;">
-                                <i class="bi bi-calendar-plus"></i> Booking Sekarang
+                                <i class="bi bi-speedometer2"></i> Panel Admin <i class="bi bi-arrow-right ms-auto"></i>
                             </a>
-                        </div>
-                    </div>
+                        @else
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <a href="{{ route('loyalty.index') }}" class="btn btn-outline-light w-100 py-2 fw-bold rounded-3" style="font-size: 0.83rem; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.03);">
+                                        <i class="bi bi-person-badge-fill me-1 text-warning"></i> Loyalty Saya
+                                    </a>
+                                </div>
+                                <div class="col-6">
+                                    <a href="{{ route('booking.index') }}" class="btn w-100 py-2 fw-bold rounded-3 text-dark d-flex align-items-center justify-content-center gap-2" 
+                                       style="background: linear-gradient(135deg, #f59e0b, #fbbf24); box-shadow: 0 4px 18px rgba(245,158,11,.25); border:none; font-size: 0.83rem;">
+                                        <i class="bi bi-calendar-plus"></i> Booking Sekarang
+                                    </a>
+                                </div>
+                            </div>
+                        @endif
                     @endguest
                 </div>
             </div><!-- end modal-body -->

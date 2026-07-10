@@ -5,8 +5,14 @@
 @section('page_title', $activeTab === 'loyalty' ? 'Loyalty Points' : 'Profil Saya')
 @section('page_subtitle', $activeTab === 'loyalty' ? 'Kumpulkan poin sewa dan tukarkan dengan hadiah menarik' : 'Kelola informasi akun dan pantau aktivitas Anda')
 @section('topbar_actions')
-    <span class="badge bg-primary rounded-pill px-3 py-2 shadow-sm">
-        <i class="bi bi-person-badge-fill me-1"></i>{{ $user->isMember() ? 'MEMBER (' . strtoupper(str_replace('_', ' ', $user->kategori_member)) . ')' : 'NON-MEMBER' }}
+    <span class="badge bg-primary rounded-pill px-3 py-2 shadow-sm d-inline-flex align-items-center gap-1.5">
+        <i class="bi bi-person-badge-fill"></i>
+        <span>{{ $user->isMember() ? 'MEMBER (' . strtoupper(str_replace('_', ' ', $user->kategori_member)) . ')' : 'NON-MEMBER' }}</span>
+        @if($user->isMember() && $user->membership_expires_at)
+            <span class="badge bg-white text-primary rounded-pill ms-1" style="font-size:0.68rem; font-weight:700; padding: 2px 6px;">
+                Aktif s/d {{ $user->membership_expires_at->format('d/m/Y') }}
+            </span>
+        @endif
     </span>
 @endsection
 
@@ -14,7 +20,7 @@
 @php
     // Hitung persentase kelengkapan profil
     $completeness = 30; // default (nama terisi)
-    $completeness += 30; // email terisi
+    if ($user->username) $completeness += 30; // username terisi
     if ($user->nomor_hp) $completeness += 15;
     if ($user->alamat) $completeness += 15;
     if ($user->foto_profil) $completeness += 10;
@@ -1222,7 +1228,7 @@
                         @endif
                     </div>
                     <h6 class="fw-bold mt-2 mb-1">{{ $user->name }}</h6>
-                    <p class="mb-0 text-white-50 small" style="font-size: 0.75rem;"><i class="bi bi-envelope me-1"></i>{{ $user->email }}</p>
+                    <p class="mb-0 text-white-50 small" style="font-size: 0.75rem;"><i class="bi bi-person me-1"></i>{{ $user->username }}</p>
                 </div>
 
                 <div class="p-4">
@@ -1286,9 +1292,20 @@
                         <i class="bi bi-patch-check-fill text-info fs-6"></i>
                     </div>
                     <h6 class="fw-bold mb-1" style="font-size: 0.85rem;">Anbiyaa Exclusive Slot</h6>
-                    <p class="mb-3 small" style="opacity: 0.85; font-size:.72rem;">
+                    <p class="mb-1 small" style="opacity: 0.85; font-size:.72rem;">
                         Anda menikmati prioritas booking, harga spesial member, dan jadwal tetap mingguan.
                     </p>
+                    @if($user->membership_expires_at)
+                        <div class="mb-3 text-light small fw-bold d-flex align-items-center gap-1" style="font-size: 0.68rem; opacity: 0.95;">
+                            <i class="bi bi-clock-history"></i>
+                            <span>Berlaku s/d {{ $user->membership_expires_at->format('d M Y') }} ({{ $user->sisaHariAktifMember() }} hari lagi)</span>
+                        </div>
+                    @else
+                        <div class="mb-3 text-light small fw-bold d-flex align-items-center gap-1" style="font-size: 0.68rem; opacity: 0.95;">
+                            <i class="bi bi-clock-history"></i>
+                            <span>Masa aktif tidak terbatas</span>
+                        </div>
+                    @endif
                     <a href="{{ route('membership.index') }}" class="btn btn-xs btn-light w-100 rounded-pill py-1.5 fw-bold" style="font-size:.7rem;">
                         Lihat Keuntungan <i class="bi bi-arrow-right ms-1"></i>
                     </a>
@@ -1987,8 +2004,8 @@
                                         <label class="form-label fw-bold text-dark" style="font-size: .83rem;">Nomor WhatsApp/HP</label>
                                         <div class="input-group input-group-premium">
                                             <span class="input-group-text"><i class="bi bi-whatsapp"></i></span>
-                                            <input type="text" name="nomor_hp" class="form-control"
-                                                   value="{{ old('nomor_hp', $user->nomor_hp) }}" placeholder="08xxxxxxxxxx">
+                                            <input type="tel" name="nomor_hp" class="form-control"
+                                                   value="{{ old('nomor_hp', $user->nomor_hp) }}" placeholder="08xxxxxxxxxx" maxlength="15" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                                         </div>
                                     </div>
                                 </div>
@@ -2020,8 +2037,8 @@
                                 <input type="hidden" name="nomor_hp" value="{{ $user->nomor_hp }}">
                                 <input type="hidden" name="alamat" value="{{ $user->alamat }}">
 
-                                <div class="alert alert-info rounded-3 py-2.5 mb-4 border-0" style="background:#eff6ff; color:#1e40af;">
-                                    <i class="bi bi-info-circle-fill me-2"></i>
+                                <div class="alert alert-info rounded-3 py-3 px-4 mb-4 border-0 d-flex align-items-center gap-2" style="background:#eff6ff; color:#1e40af;">
+                                    <i class="bi bi-info-circle-fill flex-shrink-0"></i>
                                     <span style="font-size: .78rem;">Pastikan password baru minimal 6 karakter dan konfirmasi password cocok.</span>
                                 </div>
 
@@ -2296,7 +2313,10 @@
                         if (result.isConfirmed) {
                             window.location.href = `{{ route('booking.index') }}?voucher_id=${res.data.id || ''}`;
                         } else {
-                            window.location.reload();
+                            // Reload dengan query param tab=loyalty agar tetap berada di tab Loyalty & Voucher
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('tab', 'loyalty');
+                            window.location.href = url.toString();
                         }
                     });
                 } else {

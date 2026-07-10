@@ -17,15 +17,13 @@ use App\Http\Requests\StoreBookingRequest;
  */
 class BookingController extends Controller
 {
-    // ─── Halaman Utama Booking ────────────────────────────────────
+    // Halaman Utama Booking
     /**
      * Menampilkan daftar lapangan dan jadwal yang tersedia.
      * Pelanggan bisa memilih lapangan, tanggal, dan jam.
      */
     public function index(Request $request)
     {
-        Booking::cancelExpiredGracefully();
-
         $tanggal   = $request->get('tanggal', date('Y-m-d'));
         $now = now();
         $requestedDate = \Carbon\Carbon::parse($tanggal);
@@ -36,10 +34,56 @@ class BookingController extends Controller
 
         // Ambil jadwal yang sudah DIPESAN pada tanggal yang dipilih agar user tahu jam berapa yang kosong
         $jadwals = Jadwal::with('lapangan')
-            ->whereDate('tanggal', $tanggal)
+            ->where('tanggal', \Carbon\Carbon::parse($tanggal))
             ->whereIn('status', ['pending', 'dipesan', 'ditutup'])
             ->orderBy('jam_mulai')
             ->get();
+
+        // ── MERGE VIRTUAL MEMBER SCHEDULES ──
+        $dayNames = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
+        $dayOfWeek = $dayNames[\Carbon\Carbon::parse($tanggal)->dayOfWeek];
+        $memberPayments = \App\Models\MembershipPayment::where('hari', $dayOfWeek)
+            ->whereIn('status_verifikasi', ['menunggu', 'diverifikasi'])
+            ->where(function ($q) use ($tanggal) {
+                $q->where('status_verifikasi', 'menunggu')
+                  ->orWhereHas('user', function ($qu) use ($tanggal) {
+                      $qu->whereIn('kategori_member', ['member', 'weekday_pagi', 'weekday_malam', 'weekend'])
+                        ->where(function ($query) use ($tanggal) {
+                            $query->whereNull('membership_expires_at')
+                                  ->orWhere('membership_expires_at', '>=', \Carbon\Carbon::parse($tanggal)->startOfDay());
+                        });
+                  });
+            })
+            ->get();
+
+        foreach ($memberPayments as $mp) {
+            $existsInDb = $jadwals->first(function ($j) use ($mp) {
+                return $j->lapangan_id === $mp->lapangan_id &&
+                       $j->jam_mulai < $mp->jam_selesai &&
+                       $j->jam_selesai > $mp->jam_mulai;
+            });
+
+            if (!$existsInDb) {
+                $vJadwal = new Jadwal([
+                    'lapangan_id' => $mp->lapangan_id,
+                    'tanggal'     => $tanggal,
+                    'jam_mulai'   => $mp->jam_mulai,
+                    'jam_selesai' => $mp->jam_selesai,
+                    'status'      => 'dipesan',
+                    'keterangan'  => 'Slot Member: ' . ($mp->user->name ?? 'Calon Member'),
+                ]);
+                $vJadwal->id = 'virtual-' . $mp->id;
+                $vJadwal->setRelation('lapangan', $mp->lapangan);
+
+                $vBooking = new Booking([
+                    'is_offline' => false,
+                ]);
+                $vBooking->setRelation('user', $mp->user);
+                $vJadwal->setRelation('booking', $vBooking);
+
+                $jadwals->push($vJadwal);
+            }
+        }
 
         $liburs = HariLibur::where('tanggal', $tanggal)->get();
         $fasilitas_list = \App\Models\Fasilitas::where('is_active', true)->get();
@@ -72,7 +116,7 @@ class BookingController extends Controller
         ));
     }
 
-    // ─── Form Booking ─────────────────────────────────────────────
+    // Form Booking
     /**
      * Menampilkan form pemilihan jadwal untuk lapangan tertentu.
      */
@@ -85,7 +129,7 @@ class BookingController extends Controller
 
         // Ambil jadwal terisi (pending/dipesan)
         $jadwalsQuery = Jadwal::with('lapangan')
-            ->whereDate('tanggal', $tanggal)
+            ->where('tanggal', \Carbon\Carbon::parse($tanggal))
             ->whereIn('status', ['pending', 'dipesan', 'ditutup']);
 
         if ($lapangan_id) {
@@ -117,7 +161,7 @@ class BookingController extends Controller
         return redirect()->route('booking.index', $request->query());
     }
 
-    // ─── Cek Ketersediaan Fasilitas (AJAX) ────────────────────────
+    // Cek Ketersediaan Fasilitas (AJAX)
     public function cekFasilitas(Request $request)
     {
         $tanggal = $request->get('tanggal');
@@ -134,7 +178,7 @@ class BookingController extends Controller
 
         $fasilitas = \App\Models\Fasilitas::where('is_active', true)->get();
 
-        // MEDIUM-5: Preload active bookings & pending bookings to prevent loop-query N+1 problem
+        // Preload active bookings & pending bookings to prevent loop-query N+1 problem
         $preloadedBookings = Booking::whereIn('status', ['pending', 'dikonfirmasi', 'dipesan'])
             ->where('tanggal_booking', $tanggal)
             ->when($excludeBookingId, fn($q) => $q->where('id', '!=', $excludeBookingId))
@@ -142,6 +186,7 @@ class BookingController extends Controller
             ->get();
 
         $pendingBookings = Booking::where('status', 'pending')
+            ->where('tanggal_booking', $tanggal)
             ->when($excludeBookingId, fn($q) => $q->where('id', '!=', $excludeBookingId))
             ->with('bookingFasilitas')
             ->get();
@@ -183,7 +228,7 @@ class BookingController extends Controller
         ]);
     }
 
-    // ─── Proses Simpan Booking ────────────────────────────────────
+    // Proses Simpan Booking
     /**
      * FITUR KUNCI: Mencegah double booking menggunakan DB transaction + lock.
      */
@@ -203,6 +248,31 @@ class BookingController extends Controller
 
         if ($libur) {
             return back()->with('error', 'Pemesanan gagal. Lapangan ditutup pada tanggal tersebut karena: ' . ($libur->keterangan ?? 'Libur/Maintenance'));
+        }
+
+        // Cek apakah bentrok dengan slot rutin member (aktif atau pending)
+        $dayNames = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
+        $dayOfWeek = $dayNames[\Carbon\Carbon::parse($request->tanggal)->dayOfWeek];
+        $overlapMember = \App\Models\MembershipPayment::where('lapangan_id', $request->lapangan_id)
+            ->where('hari', $dayOfWeek)
+            ->whereIn('status_verifikasi', ['menunggu', 'diverifikasi'])
+            ->where('jam_mulai', '<', $request->jam_selesai)
+            ->where('jam_selesai', '>', $request->jam_mulai)
+            ->where(function($q) use ($request) {
+                $q->where('status_verifikasi', 'menunggu')
+                  ->orWhereHas('user', function($qu) use ($request) {
+                      $qu->whereIn('kategori_member', ['member', 'weekday_pagi', 'weekday_malam', 'weekend'])
+                        ->where(function ($query) use ($request) {
+                            $query->whereNull('membership_expires_at')
+                                  ->orWhere('membership_expires_at', '>=', \Carbon\Carbon::parse($request->tanggal)->startOfDay());
+                        });
+                  });
+            })
+            ->first();
+
+        if ($overlapMember) {
+            $namaMember = $overlapMember->user->name ?? 'Calon Member';
+            return back()->withInput()->with('error', 'Pemesanan gagal. Slot waktu ini sudah terisi oleh slot rutin member (' . $namaMember . ').');
         }
 
         try {
@@ -551,6 +621,11 @@ class BookingController extends Controller
                     'verified_at'       => $totalHarga == 0 ? now() : null,
                 ]);
 
+                // Adjust stock if booking status is immediately dipesan or selesai
+                if (in_array($booking->status, ['dipesan', 'selesai'])) {
+                    $booking->adjustFasilitasStock('decrement');
+                }
+
                 return $booking;
             });
 
@@ -563,22 +638,15 @@ class BookingController extends Controller
     }
 
 
-    // ─── Edit Booking ─────────────────────────────────────────────
+    // Edit Booking
     public function edit(Request $request, $id)
     {
-        $booking = Booking::with(['jadwal', 'pembayaran'])->where('user_id', Auth::id())->findOrFail($id);
+        $booking = Booking::with(['jadwal', 'pembayaran', 'bookingFasilitas'])->where('user_id', Auth::id())->findOrFail($id);
 
         if ($booking->status !== 'pending' || ($booking->pembayaran && $booking->pembayaran->bukti_pembayaran)) {
             return back()->with('error', 'Booking tidak dapat diedit karena sudah dibayar atau diproses.');
         }
 
-        $fasilitas = $booking->fasilitas ? explode(', ', $booking->fasilitas) : [];
-        $qty_raket = 0; $qty_kok_satuan = 0; $qty_kok_slop = 0;
-        foreach($fasilitas as $f) {
-            if(str_contains($f, 'Raket')) $qty_raket = (int) filter_var($f, FILTER_SANITIZE_NUMBER_INT);
-            if(str_contains($f, 'Kok Satuan')) $qty_kok_satuan = (int) filter_var($f, FILTER_SANITIZE_NUMBER_INT);
-            if(str_contains($f, 'Kok Slop')) $qty_kok_slop = (int) filter_var($f, FILTER_SANITIZE_NUMBER_INT);
-        }
 
         $lapangans = Lapangan::where('status', 'aktif')->get();
 
@@ -597,6 +665,52 @@ class BookingController extends Controller
 
         $jadwals = $jadwalsQuery->orderBy('jam_mulai')->get();
 
+        // ── MERGE VIRTUAL MEMBER SCHEDULES ──
+        $dayNames = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
+        $dayOfWeek = $dayNames[\Carbon\Carbon::parse($tanggal)->dayOfWeek];
+        $memberPayments = \App\Models\MembershipPayment::where('hari', $dayOfWeek)
+            ->whereIn('status_verifikasi', ['menunggu', 'diverifikasi'])
+            ->where(function ($q) use ($tanggal) {
+                $q->where('status_verifikasi', 'menunggu')
+                  ->orWhereHas('user', function ($qu) use ($tanggal) {
+                      $qu->whereIn('kategori_member', ['member', 'weekday_pagi', 'weekday_malam', 'weekend'])
+                        ->where(function ($query) use ($tanggal) {
+                            $query->whereNull('membership_expires_at')
+                                  ->orWhere('membership_expires_at', '>=', \Carbon\Carbon::parse($tanggal)->startOfDay());
+                        });
+                  });
+            })
+            ->get();
+
+        foreach ($memberPayments as $mp) {
+            $existsInDb = $jadwals->first(function ($j) use ($mp) {
+                return $j->lapangan_id === $mp->lapangan_id &&
+                       $j->jam_mulai < $mp->jam_selesai &&
+                       $j->jam_selesai > $mp->jam_mulai;
+            });
+
+            if (!$existsInDb) {
+                $vJadwal = new Jadwal([
+                    'lapangan_id' => $mp->lapangan_id,
+                    'tanggal'     => $tanggal,
+                    'jam_mulai'   => $mp->jam_mulai,
+                    'jam_selesai' => $mp->jam_selesai,
+                    'status'      => 'dipesan',
+                    'keterangan'  => 'Slot Member: ' . ($mp->user->name ?? 'Calon Member'),
+                ]);
+                $vJadwal->id = 'virtual-' . $mp->id;
+                $vJadwal->setRelation('lapangan', $mp->lapangan);
+
+                $vBooking = new Booking([
+                    'is_offline' => false,
+                ]);
+                $vBooking->setRelation('user', $mp->user);
+                $vJadwal->setRelation('booking', $vBooking);
+
+                $jadwals->push($vJadwal);
+            }
+        }
+
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
@@ -607,12 +721,11 @@ class BookingController extends Controller
         }
 
         return view('pelanggan.booking.edit', compact(
-            'booking', 'lapangans', 'jadwals', 'tanggal', 'lapangan_id',
-            'qty_raket', 'qty_kok_satuan', 'qty_kok_slop'
+            'booking', 'lapangans', 'jadwals', 'tanggal', 'lapangan_id'
         ))->with('fasilitas_list', \App\Models\Fasilitas::where('is_active', true)->get());
     }
 
-    // ─── Update Booking ───────────────────────────────────────────
+    // Update Booking
     public function update(Request $request, $id)
     {
         $booking = Booking::with(['jadwal', 'pembayaran'])->where('user_id', Auth::id())->findOrFail($id);
@@ -654,6 +767,31 @@ class BookingController extends Controller
 
         if ($libur) {
             return back()->with('error', 'Update gagal. Lapangan ditutup pada tanggal tersebut karena: ' . ($libur->keterangan ?? 'Libur/Maintenance'));
+        }
+
+        // Cek apakah bentrok dengan slot rutin member (aktif atau pending)
+        $dayNames = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
+        $dayOfWeek = $dayNames[\Carbon\Carbon::parse($request->tanggal)->dayOfWeek];
+        $overlapMember = \App\Models\MembershipPayment::where('lapangan_id', $request->lapangan_id)
+            ->where('hari', $dayOfWeek)
+            ->whereIn('status_verifikasi', ['menunggu', 'diverifikasi'])
+            ->where('jam_mulai', '<', $request->jam_selesai)
+            ->where('jam_selesai', '>', $request->jam_mulai)
+            ->where(function($q) use ($request) {
+                $q->where('status_verifikasi', 'menunggu')
+                  ->orWhereHas('user', function($qu) use ($request) {
+                      $qu->whereIn('kategori_member', ['member', 'weekday_pagi', 'weekday_malam', 'weekend'])
+                        ->where(function ($query) use ($request) {
+                            $query->whereNull('membership_expires_at')
+                                  ->orWhere('membership_expires_at', '>=', \Carbon\Carbon::parse($request->tanggal)->startOfDay());
+                        });
+                  });
+            })
+            ->first();
+
+        if ($overlapMember) {
+            $namaMember = $overlapMember->user->name ?? 'Calon Member';
+            return back()->withInput()->with('error', 'Update gagal. Slot waktu ini sudah terisi oleh slot rutin member (' . $namaMember . ').');
         }
 
         try {
@@ -800,7 +938,7 @@ class BookingController extends Controller
         }
     }
 
-    // ─── Detail Booking ─────────────────────────────────────────────
+    // Detail Booking
     public function show($id)
     {
         // Pastikan pelanggan hanya bisa lihat booking miliknya sendiri
@@ -811,9 +949,10 @@ class BookingController extends Controller
         return view('pelanggan.booking.show', compact('booking'));
     }
 
-    // ─── Riwayat Booking ─────────────────────────────────────────
+    // Riwayat Booking
     public function riwayat()
     {
+        // Fallback pemicu otomatisasi untuk mempermudah development tanpa background scheduler
         Booking::cancelExpiredGracefully();
 
         $bookings = Booking::with(['jadwal', 'lapangan', 'pembayaran'])
@@ -824,7 +963,7 @@ class BookingController extends Controller
         return view('pelanggan.booking.riwayat', compact('bookings'));
     }
 
-    // ─── Upload Bukti Pembayaran ──────────────────────────────────
+    // Upload Bukti Pembayaran
     public function uploadPembayaran(Request $request, $bookingId)
     {
         $request->validate([
@@ -846,8 +985,7 @@ class BookingController extends Controller
 
         $booking = Booking::where('user_id', Auth::id())->findOrFail($bookingId);
 
-        // ─── HIGH-2: Hapus file lama sebelum upload file baru ─────────────────
-        // Mencegah penumpukan file orphan di storage/app/public/pembayaran/
+        // Hapus file lama sebelum upload file baru untuk mencegah penumpukan file
         if ($booking->pembayaran && $booking->pembayaran->bukti_pembayaran) {
             $oldPath = $booking->pembayaran->bukti_pembayaran;
             // Jangan hapus jika path adalah dummy Midtrans atau sudah tidak ada
@@ -855,7 +993,6 @@ class BookingController extends Controller
                 \Storage::disk('public')->delete($oldPath);
             }
         }
-        // ────────────────────────────────────────────────────────────────────
 
         // Upload file baru ke storage/app/public/pembayaran
         $path = $request->file('bukti_pembayaran')->store('pembayaran', 'public');
@@ -874,7 +1011,7 @@ class BookingController extends Controller
             ->with('success', 'Bukti pembayaran berhasil diupload! Menunggu verifikasi admin.');
     }
 
-    // ─── Simpan Ulasan Pelanggan ──────────────────────────────────
+    // Simpan Ulasan Pelanggan
     public function storeUlasan(Request $request, $id)
     {
         $request->validate([
@@ -894,7 +1031,7 @@ class BookingController extends Controller
 
         $booking->update([
             'rating' => $request->rating,
-            // MEDIUM-4: strip_tags mencegah XSS jika ada template yang menggunakan {!! !!}
+            // Gunakan strip_tags untuk mencegah XSS
             'ulasan' => $request->ulasan ? strip_tags(trim($request->ulasan)) : null,
         ]);
 

@@ -193,10 +193,10 @@
                            class="btn btn-sm btn-outline-success rounded-pill flex-grow-1">
                             <i class="bi bi-calendar3 me-1"></i>Jadwal
                         </a>
-                        <form action="{{ route('admin.lapangan.destroy', $l->id) }}" method="POST" class="d-inline"
-                              onsubmit="return confirm('Hapus lapangan {{ $l->nama_lapangan }}?\nSemua jadwal terkait juga akan terhapus.')">
+                        <form action="{{ route('admin.lapangan.destroy', $l->id) }}" method="POST" class="d-inline">
                             @csrf @method('DELETE')
-                            <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill"
+                            <button type="button" class="btn btn-sm btn-outline-danger rounded-pill btn-delete"
+                                    data-nama="{{ $l->nama_lapangan }}"
                                     title="Hapus Lapangan">
                                 <i class="bi bi-trash"></i>
                             </button>
@@ -231,3 +231,34 @@
     @endif
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    document.querySelectorAll('.btn-delete').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = this.closest('form');
+            const namaLapangan = this.getAttribute('data-nama');
+            
+            Swal.fire({
+                title: 'Hapus Lapangan?',
+                text: `Apakah Anda yakin ingin menghapus lapangan "${namaLapangan}"? Semua jadwal terkait juga akan terhapus. Tindakan ini tidak dapat dibatalkan.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444', // Danger Red
+                cancelButtonColor: '#6b7280', // Gray
+                confirmButtonText: 'Ya, Hapus!',
+                cancelButtonText: 'Batal',
+                background: '#fff',
+                customClass: {
+                    popup: 'rounded-4'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+        });
+    });
+</script>
+@endpush

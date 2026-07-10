@@ -12,7 +12,7 @@
         body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
             background-color: #030712;
-            min-height: 100vh;
+            height: 100vh;
             display: flex;
             margin: 0;
             overflow: hidden;
@@ -199,6 +199,7 @@
             position: relative;
             box-shadow: -15px 0 45px rgba(0, 0, 0, 0.4);
             overflow-y: auto;
+            height: 100vh;
             border-left: 1px solid rgba(255, 255, 255, 0.04);
         }
         
@@ -451,6 +452,11 @@
         .btn-toggle-password:hover {
             color: #94a3b8;
         }
+        /* Hide browser default password reveal and clear icons */
+        input::-ms-reveal,
+        input::-ms-clear {
+            display: none !important;
+        }
 
         /* Sequential loading animations */
         .form-field-animate {
@@ -484,9 +490,9 @@
 
         /* Responsive */
         @media (max-width: 991px) {
-            body { flex-direction: column; overflow: auto; background-color: #030712; }
+            body { flex-direction: column; overflow: auto; height: auto; background-color: #030712; }
             .login-visual { display: none; }
-            .login-form-container { flex: 1; width: 100%; padding: 2.5rem 1.5rem; box-shadow: none; background-color: #030712; border-left: none; }
+            .login-form-container { flex: 1; width: 100%; height: auto; padding: 2.5rem 1.5rem; box-shadow: none; background-color: #030712; border-left: none; }
             .form-wrapper { max-width: 100%; }
             .brand-logo-mobile { display: flex !important; justify-content: center; margin-bottom: 2rem; }
         }
@@ -614,19 +620,19 @@
                     </div>
 
                     <div class="col-md-6 form-field-animate field-delay-4">
-                        <label class="form-label">Email Address <span class="text-danger">*</span></label>
+                        <label class="form-label">Username <span class="text-danger">*</span></label>
                         <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                            <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" placeholder="nama@email.com" value="{{ old('email') }}" required>
+                            <span class="input-group-text"><i class="bi bi-person"></i></span>
+                            <input type="text" name="username" class="form-control @error('username') is-invalid @enderror" placeholder="username_anda" value="{{ old('username') }}" required>
                         </div>
-                        <small class="form-text text-muted mt-1 d-block" style="font-size: 0.68rem; line-height: 1.2;">Untuk bukti kwitansi sewa resmi.</small>
+                        <small class="form-text text-muted mt-1 d-block" style="font-size: 0.68rem; line-height: 1.2;">Untuk identitas masuk/login akun.</small>
                     </div>
 
                     <div class="col-md-6 form-field-animate field-delay-4">
-                        <label class="form-label">Nomor WhatsApp</label>
+                        <label class="form-label">Nomor WhatsApp <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-whatsapp"></i></span>
-                            <input type="text" name="nomor_hp" class="form-control" placeholder="08xxxxxxxxxx" value="{{ old('nomor_hp') }}">
+                            <input type="tel" name="nomor_hp" class="form-control @error('nomor_hp') is-invalid @enderror" placeholder="08xxxxxxxxxx" value="{{ old('nomor_hp') }}" required maxlength="15" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                         </div>
                         <small class="form-text text-muted mt-1 d-block" style="font-size: 0.68rem; line-height: 1.2;">Untuk notifikasi booking instan.</small>
                     </div>
@@ -833,8 +839,10 @@
             if (form && submitBtn) {
                 form.addEventListener('submit', function() {
                     if (form.checkValidity()) {
-                        submitBtn.disabled = true;
                         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Mendaftarkan...';
+                        setTimeout(() => {
+                            submitBtn.disabled = true;
+                        }, 1);
                     }
                 });
             }

@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
 
 use App\Models\Lapangan;
 use App\Models\Jadwal;
@@ -15,7 +17,7 @@ use Carbon\Carbon;
  */
 class LapanganController extends Controller
 {
-    // ─── CRUD Lapangan ────────────────────────────────────────────
+    // CRUD Lapangan
 
     /** Daftar semua lapangan */
     public function index()
@@ -100,7 +102,7 @@ class LapanganController extends Controller
             ->with('success', 'Lapangan berhasil dihapus!');
     }
 
-    // ─── Kelola Jadwal ────────────────────────────────────────────
+    // Kelola Jadwal
 
     /** Daftar jadwal untuk semua lapangan */
     public function jadwalIndex()
@@ -156,6 +158,31 @@ class LapanganController extends Controller
             return back()->with('error', 'Gagal memblokir! Sudah ada booking aktif/pending di waktu tersebut.');
         }
 
+        // Cek bentrok dengan slot rutin member (aktif atau pending)
+        $dayNames = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
+        $dayOfWeek = $dayNames[\Carbon\Carbon::parse($request->tanggal)->dayOfWeek];
+        $overlapMember = \App\Models\MembershipPayment::where('lapangan_id', $request->lapangan_id)
+            ->where('hari', $dayOfWeek)
+            ->whereIn('status_verifikasi', ['menunggu', 'diverifikasi'])
+            ->where('jam_mulai', '<', $request->jam_selesai)
+            ->where('jam_selesai', '>', $request->jam_mulai)
+            ->where(function($q) use ($request) {
+                $q->where('status_verifikasi', 'menunggu')
+                  ->orWhereHas('user', function($qu) use ($request) {
+                      $qu->whereIn('kategori_member', ['member', 'weekday_pagi', 'weekday_malam', 'weekend'])
+                        ->where(function ($query) use ($request) {
+                            $query->whereNull('membership_expires_at')
+                                  ->orWhere('membership_expires_at', '>=', \Carbon\Carbon::parse($request->tanggal)->startOfDay());
+                        });
+                  });
+            })
+            ->first();
+
+        if ($overlapMember) {
+            $namaMember = $overlapMember->user->name ?? 'Calon Member';
+            return back()->withInput()->with('error', 'Gagal memblokir! Slot waktu ini sudah terisi oleh slot rutin member (' . $namaMember . ').');
+        }
+
         // Cek jika waktu yang diinput sudah terlewat (di masa lalu)
         $startDateTime = Carbon::parse($request->tanggal . ' ' . $request->jam_mulai);
         if ($startDateTime->lt(Carbon::now()->subMinutes(2))) {
@@ -208,7 +235,7 @@ class LapanganController extends Controller
             ->with('success', 'Jadwal berhasil dihapus!');
     }
 
-    // ─── Booking Offline ──────────────────────────────────────────
+    // Booking Offline
 
     /**
      * Admin mencatat pemesanan lapangan secara offline.
@@ -268,6 +295,43 @@ class LapanganController extends Controller
             return back()
                 ->withInput()
                 ->with('error', 'Gagal! Slot waktu tersebut sudah terisi atau diblokir.');
+        }
+
+        // Cek bentrok dengan slot rutin member (aktif atau pending)
+        $dayNames = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
+        $dayOfWeek = $dayNames[\Carbon\Carbon::parse($request->tanggal)->dayOfWeek];
+        $overlapMember = \App\Models\MembershipPayment::where('lapangan_id', $request->lapangan_id)
+            ->where('hari', $dayOfWeek)
+            ->whereIn('status_verifikasi', ['menunggu', 'diverifikasi'])
+            ->where('jam_mulai', '<', $request->jam_selesai)
+            ->where('jam_selesai', '>', $request->jam_mulai)
+            ->where(function($q) use ($request) {
+                $q->where('status_verifikasi', 'menunggu')
+                  ->orWhereHas('user', function($qu) use ($request) {
+                      $qu->whereIn('kategori_member', ['member', 'weekday_pagi', 'weekday_malam', 'weekend'])
+                        ->where(function ($query) use ($request) {
+                            $query->whereNull('membership_expires_at')
+                                  ->orWhere('membership_expires_at', '>=', \Carbon\Carbon::parse($request->tanggal)->startOfDay());
+                        });
+                  });
+            })
+            ->first();
+
+        if ($overlapMember) {
+            $namaMember = $overlapMember->user->name ?? 'Calon Member';
+            return back()->withInput()->with('error', 'Gagal mencatat booking offline: Slot waktu ini sudah terisi oleh slot rutin member (' . $namaMember . ').');
+        }
+
+        // Pengecekan overlap dengan booking aktif (pending, dipesan, ditutup)
+        $overlap = Jadwal::where('lapangan_id', $request->lapangan_id)
+            ->where('tanggal', $request->tanggal)
+            ->whereIn('status', ['pending', 'dipesan', 'ditutup'])
+            ->where('jam_mulai', '<', $request->jam_selesai)
+            ->where('jam_selesai', '>', $request->jam_mulai)
+            ->exists();
+
+        if ($overlap) {
+            return back()->withInput()->with('error', 'Gagal mencatat booking offline: Slot waktu ini sudah terisi atau ditutup oleh pemesanan lain.');
         }
 
         // Hapus slot tersedia yang overlap agar tidak terjadi duplikasi/constraint violation
@@ -361,6 +425,11 @@ class LapanganController extends Controller
                     'catatan_admin'     => 'Booking offline oleh admin' . ($request->catatan ? ': ' . $request->catatan : '.'),
                     'verified_at'       => now(),
                 ]);
+
+                // Adjust stock if booking status is immediately dipesan or selesai
+                if (in_array($booking->status, ['dipesan', 'selesai'])) {
+                    $booking->adjustFasilitasStock('decrement');
+                }
             });
 
             return redirect()->route('admin.jadwal.index')
@@ -373,7 +442,7 @@ class LapanganController extends Controller
         }
     }
 
-    // ─── Kelola Hari Libur ────────────────────────────────────────────
+    // Kelola Hari Libur
 
     public function liburStore(Request $request)
     {
@@ -385,7 +454,7 @@ class LapanganController extends Controller
             'tanggal.after_or_equal' => 'Tanggal tidak boleh di masa lalu.'
         ]);
 
-        // MEDIUM-1: Gunakan only() bukan all() untuk mencegah mass assignment attack
+        // Gunakan only() bukan all() untuk mencegah mass assignment attack
         HariLibur::create($request->only(['tanggal', 'lapangan_id', 'keterangan']));
 
         return redirect()->back()->with('success', 'Hari libur berhasil ditetapkan!');

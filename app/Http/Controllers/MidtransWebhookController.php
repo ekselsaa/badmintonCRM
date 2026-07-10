@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Pembayaran;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class MidtransWebhookController extends Controller
 {
@@ -16,9 +17,7 @@ class MidtransWebhookController extends Controller
         \Midtrans\Config::$serverKey = config('midtrans.server_key');
         \Midtrans\Config::$isProduction = config('midtrans.is_production');
 
-        // ─── CRITICAL: Verifikasi Signature Hash Midtrans ──────────────────
-        // Mencegah notifikasi pembayaran palsu dari pihak yang tidak berwenang.
-        // Formula: SHA-512(order_id + status_code + gross_amount + server_key)
+        // Verifikasi Signature Hash Midtrans untuk mencegah spoofing
         $input = $request->all();
         if (empty($input['order_id']) || empty($input['status_code']) || empty($input['gross_amount']) || empty($input['signature_key'])) {
             Log::warning('[Midtrans] Request webhook tidak lengkap | IP: ' . $request->ip());
@@ -34,7 +33,6 @@ class MidtransWebhookController extends Controller
             Log::warning('[Midtrans] Signature tidak valid! Order ID: ' . ($input['order_id'] ?? '-') . ' | IP: ' . $request->ip());
             return response()->json(['message' => 'Invalid signature'], 403);
         }
-        // ────────────────────────────────────────────────────────────────────
 
         try {
             $notification = new \Midtrans\Notification();
@@ -81,64 +79,65 @@ class MidtransWebhookController extends Controller
             // Cari atau buat record pembayaran
             $pembayaran = Pembayaran::firstOrNew(['booking_id' => $booking->id]);
             
-            if ($transactionStatus == 'capture' || $transactionStatus == 'settlement') {
-                $pembayaran->jumlah_bayar = $notification->gross_amount;
-                $pembayaran->metode_pembayaran = $notification->payment_type == 'qris' ? 'qris' : 'transfer';
-                $pembayaran->status_verifikasi = 'diverifikasi';
-                $pembayaran->bukti_pembayaran = 'midtrans_auto'; // Dummy path untuk bypass required
-                $pembayaran->verified_at = now();
-                $pembayaran->catatan_admin = 'Diverifikasi otomatis oleh Midtrans';
-                $pembayaran->save();
+            DB::transaction(function () use ($booking, $pembayaran, $transactionStatus, $notification) {
+                if ($transactionStatus == 'capture' || $transactionStatus == 'settlement') {
+                    $pembayaran->jumlah_bayar = $notification->gross_amount;
+                    $pembayaran->metode_pembayaran = $notification->payment_type == 'qris' ? 'qris' : 'transfer';
+                    $pembayaran->status_verifikasi = 'diverifikasi';
+                    $pembayaran->bukti_pembayaran = 'midtrans_auto'; // Dummy path untuk bypass required
+                    $pembayaran->verified_at = now();
+                    $pembayaran->catatan_admin = 'Diverifikasi otomatis oleh Midtrans';
+                    $pembayaran->save();
 
-                // Update status booking menjadi 'dipesan' agar sinkron dengan jadwal
-                $booking->status = 'dipesan';
-                $booking->save();
+                    // Update status booking menjadi 'dipesan' agar sinkron dengan jadwal
+                    $booking->status = 'dipesan';
+                    $booking->save();
 
-                // SINKRONISASI: Update juga status di tabel jadwal terkait
-                if ($booking->jadwal) {
-                    $booking->jadwal->status = 'dipesan';
-                    $booking->jadwal->save();
-                }
-
-                // ─── LOYALTY POINTS ──────────────────────────────────────
-                $booking->load(['jadwal', 'lapangan', 'bookingFasilitas.fasilitas']);
-                if ($booking->user_id) {
-                    $loyaltyService = new \App\Services\LoyaltyPointService();
-                    $poinDidapat = $loyaltyService->kreditPoinDariBooking($booking);
-
-                    if ($poinDidapat > 0) {
-                        $catatanLama = $pembayaran->catatan_admin;
-                        $catatanBaru = "[Loyalty +{$poinDidapat} poin → {$booking->user->name}]";
-                        $pembayaran->update([
-                            'catatan_admin' => $catatanLama
-                                ? $catatanLama . "\n" . $catatanBaru
-                                : $catatanBaru,
-                        ]);
-                    }
-                }
-                // ─────────────────────────────────────────────────────────
-            } 
-            else if ($transactionStatus == 'cancel' || $transactionStatus == 'deny' || $transactionStatus == 'expire') {
-                $pembayaran->status_verifikasi = 'ditolak';
-                $pembayaran->catatan_admin = 'Pembayaran gagal/expired (Midtrans)';
-                $pembayaran->save();
-
-                $booking->status = 'dibatalkan'; 
-                $booking->save();
-
-                // Free up the schedule if no other bookings are holding it
-                if ($booking->jadwal) {
-                    $adaBookingAktif = Booking::where('jadwal_id', $booking->jadwal_id)
-                        ->where('id', '!=', $booking->id)
-                        ->whereIn('status', ['pending', 'dikonfirmasi', 'dipesan'])
-                        ->exists();
-
-                    if (!$adaBookingAktif) {
-                        $booking->jadwal->status = 'tersedia';
+                    // SINKRONISASI: Update juga status di tabel jadwal terkait
+                    if ($booking->jadwal) {
+                        $booking->jadwal->status = 'dipesan';
                         $booking->jadwal->save();
                     }
+
+                    // Hitung dan tambahkan Loyalty Points untuk pengguna
+                    $booking->load(['jadwal', 'lapangan', 'bookingFasilitas.fasilitas']);
+                    if ($booking->user_id) {
+                        $loyaltyService = new \App\Services\LoyaltyPointService();
+                        $poinDidapat = $loyaltyService->kreditPoinDariBooking($booking);
+
+                        if ($poinDidapat > 0) {
+                            $catatanLama = $pembayaran->catatan_admin;
+                            $catatanBaru = "[Loyalty +{$poinDidapat} poin → {$booking->user->name}]";
+                            $pembayaran->update([
+                                'catatan_admin' => $catatanLama
+                                    ? $catatanLama . "\n" . $catatanBaru
+                                    : $catatanBaru,
+                            ]);
+                        }
+                    }
+                } 
+                else if (in_array($transactionStatus, ['cancel', 'deny', 'expire'])) {
+                    $pembayaran->status_verifikasi = 'ditolak';
+                    $pembayaran->catatan_admin = 'Pembayaran gagal/expired (Midtrans)';
+                    $pembayaran->save();
+
+                    $booking->status = 'dibatalkan'; 
+                    $booking->save();
+
+                    // Free up the schedule if no other bookings are holding it
+                    if ($booking->jadwal) {
+                        $adaBookingAktif = Booking::where('jadwal_id', $booking->jadwal_id)
+                            ->where('id', '!=', $booking->id)
+                            ->whereIn('status', ['pending', 'dikonfirmasi', 'dipesan'])
+                            ->exists();
+
+                        if (!$adaBookingAktif) {
+                            $booking->jadwal->status = 'tersedia';
+                            $booking->jadwal->save();
+                        }
+                    }
                 }
-            }
+            });
 
             return response()->json(['message' => 'OK']);
         } finally {

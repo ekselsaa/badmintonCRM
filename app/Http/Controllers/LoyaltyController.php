@@ -17,7 +17,7 @@ class LoyaltyController extends Controller
 {
     public function __construct(private LoyaltyPointService $loyaltyService) {}
 
-    // ─── Proses Penukaran Poin ─────────────────────────────────────────
+    // Proses Penukaran Poin
 
     /**
      * Proses POST permintaan penukaran poin dari pelanggan.
@@ -43,6 +43,7 @@ class LoyaltyController extends Controller
                     'success' => true,
                     'message' => 'Penukaran poin berhasil!',
                     'data' => [
+                        'id'           => $redemption->id,
                         'label'        => $label,
                         'kode_voucher' => $redemption->kode_voucher,
                         'kode_display' => $redemption->kode_display,

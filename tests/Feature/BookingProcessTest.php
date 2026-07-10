@@ -25,14 +25,12 @@ class BookingProcessTest extends TestCase
 
         $this->pelanggan = User::create([
             'name' => 'Pelanggan 1',
-            'email' => 'p1@test.com',
             'password' => bcrypt('password'),
             'role' => 'pelanggan',
         ]);
 
         $this->pelanggan2 = User::create([
             'name' => 'Pelanggan 2',
-            'email' => 'p2@test.com',
             'password' => bcrypt('password'),
             'role' => 'pelanggan',
         ]);
@@ -184,7 +182,6 @@ class BookingProcessTest extends TestCase
         // 1. Create active member
         $member = User::create([
             'name' => 'Active Member',
-            'email' => 'member@test.com',
             'password' => bcrypt('password'),
             'role' => 'pelanggan',
             'kategori_member' => 'member',
@@ -231,7 +228,6 @@ class BookingProcessTest extends TestCase
         // Create active member with weekday_malam package
         $member = User::create([
             'name' => 'Member Malam',
-            'email' => 'malam@test.com',
             'password' => bcrypt('password'),
             'role' => 'pelanggan',
             'kategori_member' => 'member',
@@ -270,7 +266,6 @@ class BookingProcessTest extends TestCase
         // 1. Create a pelanggan
         $member = User::create([
             'name' => 'Member Test',
-            'email' => 'member_test@test.com',
             'password' => bcrypt('password'),
             'role' => 'pelanggan',
             'kategori_member' => 'non-member',
@@ -279,8 +274,7 @@ class BookingProcessTest extends TestCase
         // 2. Create an admin
         $admin = User::create([
             'name' => 'Admin User',
-            'email' => 'admin_test@test.com',
-            'password' => bcrypt('password'),
+            'password' => bcrypt('admin'),
             'role' => 'admin',
         ]);
 
@@ -332,7 +326,7 @@ class BookingProcessTest extends TestCase
             $this->assertEquals('18:00', Carbon::parse($jadwal->jam_mulai)->format('H:i'));
             $this->assertEquals('21:00', Carbon::parse($jadwal->jam_selesai)->format('H:i'));
             $this->assertEquals('dipesan', $jadwal->status);
-            $this->assertEquals('Slot Member: ' . $member->name, $jadwal->keterangan);
+            $this->assertEquals('Slot Member: ' . $member->name . ' (#' . $member->id . ')', $jadwal->keterangan);
 
             $monday = $monday->copy()->next('Monday');
         }
@@ -342,8 +336,7 @@ class BookingProcessTest extends TestCase
     {
         $admin = User::create([
             'name' => 'Admin User',
-            'email' => 'admin_crm@test.com',
-            'password' => bcrypt('password'),
+            'password' => bcrypt('admin'),
             'role' => 'admin',
         ]);
 
@@ -407,8 +400,7 @@ class BookingProcessTest extends TestCase
     {
         $admin = User::create([
             'name' => 'Admin User',
-            'email' => 'admin_schedule@test.com',
-            'password' => bcrypt('password'),
+            'password' => bcrypt('admin'),
             'role' => 'admin',
         ]);
 
@@ -416,6 +408,115 @@ class BookingProcessTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Kelola');
         $response->assertSee('admin/jadwal');
+    }
+
+    public function test_membership_ajax_check_availability()
+    {
+        // 1. Create a membership payment request with selected schedule (Monday 18:00-21:00 on Lapangan Test)
+        $payment = \App\Models\MembershipPayment::create([
+            'user_id' => $this->pelanggan->id,
+            'paket' => 'weekday_malam',
+            'jumlah_bayar' => 500000,
+            'metode_pembayaran' => 'qris',
+            'bukti_pembayaran' => 'dummy_bukti.png',
+            'status_verifikasi' => 'menunggu',
+            'hari' => 'senin',
+            'jam_mulai' => '18:00',
+            'jam_selesai' => '21:00',
+            'lapangan_id' => $this->lapangan->id,
+        ]);
+
+        // 2. Access the AJAX availability endpoint for a different slot (available)
+        $response = $this->actingAs($this->pelanggan2)
+            ->getJson('/membership/check-availability?lapangan_id=' . $this->lapangan->id . '&hari=senin&sesi=07:00-10:00');
+        
+        $response->assertStatus(200);
+        $response->assertJson(['available' => true]);
+
+        // 3. Access the AJAX availability endpoint for the same overlapping slot (unavailable)
+        $response2 = $this->actingAs($this->pelanggan2)
+            ->getJson('/membership/check-availability?lapangan_id=' . $this->lapangan->id . '&hari=senin&sesi=18:00-21:00');
+        
+        $response2->assertStatus(200);
+        $response2->assertJson(['available' => false]);
+    }
+
+    public function test_membership_registration_blocks_if_overlapping_membership()
+    {
+        // 1. Create a membership payment request with selected schedule (Monday 18:00-21:00 on Lapangan Test)
+        $payment = \App\Models\MembershipPayment::create([
+            'user_id' => $this->pelanggan->id,
+            'paket' => 'weekday_malam',
+            'jumlah_bayar' => 500000,
+            'metode_pembayaran' => 'qris',
+            'bukti_pembayaran' => 'dummy_bukti.png',
+            'status_verifikasi' => 'menunggu',
+            'hari' => 'senin',
+            'jam_mulai' => '18:00',
+            'jam_selesai' => '21:00',
+            'lapangan_id' => $this->lapangan->id,
+        ]);
+
+        // 2. Submit a new registration on the same slot
+        $file = \Illuminate\Http\UploadedFile::fake()->create('bukti.png', 100);
+        $response = $this->actingAs($this->pelanggan2)
+            ->post('/membership/bayar', [
+                'paket' => 'weekday_malam',
+                'metode_pembayaran' => 'qris',
+                'bukti_pembayaran' => $file,
+                'lapangan_id' => $this->lapangan->id,
+                'hari' => 'senin',
+                'sesi' => '18:00-21:00',
+            ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertStringContainsString('Jadwal rutin tersebut sudah diisi oleh member lain', session('error'));
+    }
+
+    public function test_membership_admin_verification_fails_if_overlapping_pending_booking()
+    {
+        $admin = User::create([
+            'name' => 'Admin User',
+            'password' => bcrypt('admin'),
+            'role' => 'admin',
+        ]);
+
+        // 1. Create a membership payment request with selected schedule (Monday 18:00-21:00 on Lapangan Test)
+        $payment = \App\Models\MembershipPayment::create([
+            'user_id' => $this->pelanggan->id,
+            'paket' => 'weekday_malam',
+            'jumlah_bayar' => 500000,
+            'metode_pembayaran' => 'qris',
+            'bukti_pembayaran' => 'dummy_bukti.png',
+            'status_verifikasi' => 'menunggu',
+            'hari' => 'senin',
+            'jam_mulai' => '18:00',
+            'jam_selesai' => '21:00',
+            'lapangan_id' => $this->lapangan->id,
+        ]);
+
+        // Calculate the next Monday date
+        $nextMonday = Carbon::parse('next monday')->format('Y-m-d');
+
+        // 2. Create a pending regular booking on that date & time
+        Jadwal::create([
+            'lapangan_id' => $this->lapangan->id,
+            'tanggal' => $nextMonday,
+            'jam_mulai' => '18:00',
+            'jam_selesai' => '21:00',
+            'status' => 'pending',
+        ]);
+
+        // 3. Attempt to verify as admin, should return back with error
+        $response = $this->actingAs($admin)->put("/admin/pembayaran-membership/{$payment->id}/verif", [
+            'status_verifikasi' => 'diverifikasi',
+            'catatan_admin' => 'Approved',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertStringContainsString('Salah satu sesi dalam 4 minggu ke depan sudah terpesan', session('error'));
     }
 }
 

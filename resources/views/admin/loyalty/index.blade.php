@@ -133,15 +133,15 @@
 <div>
     {{-- Alerts --}}
     @if(session('success'))
-        <div class="alert alert-success d-flex align-items-center gap-2 rounded-3 py-2.5 mb-4 shadow-sm border-0">
-            <i class="bi bi-check-circle-fill fs-5"></i> 
+        <div class="alert alert-success d-flex align-items-center gap-3 rounded-3 py-3 px-4 mb-4 shadow-sm border-0">
+            <i class="bi bi-check-circle-fill fs-4 flex-shrink-0"></i> 
             <div>{!! session('success') !!}</div>
         </div>
     @endif
 
     @if(session('error'))
-        <div class="alert alert-danger d-flex align-items-center gap-2 rounded-3 py-2.5 mb-4 shadow-sm border-0">
-            <i class="bi bi-exclamation-triangle-fill fs-5"></i> 
+        <div class="alert alert-danger d-flex align-items-center gap-3 rounded-3 py-3 px-4 mb-4 shadow-sm border-0">
+            <i class="bi bi-exclamation-triangle-fill fs-4 flex-shrink-0"></i> 
             <div>{!! session('error') !!}</div>
         </div>
     @endif
@@ -301,7 +301,7 @@
                             <option value="">-- Pilih Pelanggan --</option>
                             @foreach($allPelangganForSelect as $usr)
                                 <option value="{{ $usr->id }}" {{ old('user_id') == $usr->id ? 'selected' : '' }}>
-                                    {{ $usr->name }} ({{ $usr->email }}) — Poin Saldo: {{ $usr->poin_saldo }}
+                                    {{ $usr->name }} ({{ $usr->username ?? $usr->email }}) — Poin Saldo: {{ $usr->poin_saldo }}
                                 </option>
                             @endforeach
                         </select>
@@ -346,7 +346,7 @@
                     <input type="hidden" name="segmen" value="{{ request('segmen') }}">
                 @endif
                 <div class="input-group input-group-sm" style="width: 260px;">
-                    <input type="text" name="search" class="form-control" placeholder="Cari nama atau email..." value="{{ request('search') }}">
+                    <input type="text" name="search" class="form-control" placeholder="Cari nama atau username..." value="{{ request('search') }}">
                     <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
                 </div>
                 @if(request('search'))
@@ -377,7 +377,7 @@
                                     </div>
                                     <div>
                                         <div class="fw-bold text-dark">{{ $p->name }}</div>
-                                        <div class="text-muted small fs-7">{{ $p->email }}</div>
+                                        <div class="text-muted small fs-7">{{ $p->username ?? $p->email }}</div>
                                     </div>
                                 </div>
                             </td>

@@ -245,8 +245,8 @@
 
                             <div class="mb-3">
                                 <label class="form-label fw-600 small text-secondary">No. HP <span class="text-muted">(Opsional)</span></label>
-                                <input type="text" name="no_hp_offline" class="form-control"
-                                    placeholder="Cth: 08123456789" value="{{ old('no_hp_offline') }}">
+                                <input type="tel" name="no_hp_offline" class="form-control"
+                                    placeholder="Cth: 08123456789" value="{{ old('no_hp_offline') }}" maxlength="15" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                             </div>
 
                             {{-- Fasilitas Tambahan - Collapsible --}}
@@ -454,10 +454,9 @@
                                 </td>
                                 <td class="text-muted">{{ $l->keterangan ?? '-' }}</td>
                                 <td class="text-center">
-                                    <form action="{{ route('admin.libur.destroy', $l->id) }}" method="POST" class="d-inline"
-                                        onsubmit="return confirm('Hapus hari libur ini? Jadwal akan kembali normal.')">
+                                    <form action="{{ route('admin.libur.destroy', $l->id) }}" method="POST" class="d-inline">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="btn-action-delete" title="Hapus"><i class="bi bi-trash"></i></button>
+                                        <button type="button" class="btn-action-delete btn-delete-libur" title="Hapus" data-tanggal="{{ \Carbon\Carbon::parse($l->tanggal)->format('d/m/Y') }}"><i class="bi bi-trash"></i></button>
                                     </form>
                                 </td>
                             </tr>
@@ -497,10 +496,9 @@
                                 <td class="fw-bold">{{ substr($j->jam_mulai, 0, 5) }} - {{ substr($j->jam_selesai, 0, 5) }}</td>
                                 <td class="text-muted">{{ $j->keterangan ?? '-' }}</td>
                                 <td class="text-center">
-                                    <form action="{{ route('admin.jadwal.destroy', $j->id) }}" method="POST" class="d-inline"
-                                        onsubmit="return confirm('Buka kembali jam lapangan ini?')">
+                                    <form action="{{ route('admin.jadwal.destroy', $j->id) }}" method="POST" class="d-inline">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="btn-action-delete" title="Hapus"><i class="bi bi-trash"></i></button>
+                                        <button type="button" class="btn-action-delete btn-delete-blokir" title="Hapus" data-lapangan="{{ $j->lapangan->nama_lapangan }}" data-waktu="{{ substr($j->jam_mulai, 0, 5) }} - {{ substr($j->jam_selesai, 0, 5) }}"><i class="bi bi-trash"></i></button>
                                     </form>
                                 </td>
                             </tr>
@@ -887,6 +885,63 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.disabled = true;
                 }
             }
+        });
+    });
+
+    // SweetAlert delete confirmation for Hari Libur
+    document.querySelectorAll('.btn-delete-libur').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = this.closest('form');
+            const tgl = this.getAttribute('data-tanggal');
+            
+            Swal.fire({
+                title: 'Hapus Hari Libur?',
+                text: `Apakah Anda yakin ingin menghapus hari libur tanggal ${tgl}? Jadwal lapangan akan kembali normal.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444', // Danger Red
+                cancelButtonColor: '#6b7280', // Gray
+                confirmButtonText: 'Ya, Hapus!',
+                cancelButtonText: 'Batal',
+                background: '#fff',
+                customClass: {
+                    popup: 'rounded-4'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+        });
+    });
+
+    // SweetAlert delete confirmation for Blokir Jam
+    document.querySelectorAll('.btn-delete-blokir').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = this.closest('form');
+            const lapangan = this.getAttribute('data-lapangan');
+            const waktu = this.getAttribute('data-waktu');
+            
+            Swal.fire({
+                title: 'Buka Kembali Jam Lapangan?',
+                text: `Apakah Anda yakin ingin membuka kembali blokir jam ${waktu} untuk ${lapangan}?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981', // Success Green
+                cancelButtonColor: '#6b7280', // Gray
+                confirmButtonText: 'Ya, Buka!',
+                cancelButtonText: 'Batal',
+                background: '#fff',
+                customClass: {
+                    popup: 'rounded-4'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
         });
     });
 

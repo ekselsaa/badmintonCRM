@@ -19,16 +19,18 @@ class AuthAccessTest extends TestCase
 
         $this->admin = User::create([
             'name' => 'Admin Test',
-            'email' => 'admin@test.com',
-            'password' => bcrypt('password'),
+            'username' => 'admin',
+            'password' => bcrypt('admin'),
             'role' => 'admin',
+            'nomor_hp' => '081234567890',
         ]);
 
         $this->pelanggan = User::create([
             'name' => 'Pelanggan Test',
-            'email' => 'pelanggan@test.com',
+            'username' => 'pelanggan',
             'password' => bcrypt('password'),
             'role' => 'pelanggan',
+            'nomor_hp' => '089876543210',
         ]);
     }
 
@@ -116,5 +118,163 @@ class AuthAccessTest extends TestCase
             'booking_count' => 1,
             'membership_count' => 1,
         ]);
+    }
+
+    public function test_user_can_login_with_username()
+    {
+        $response = $this->post('/login', [
+            'username' => 'admin',
+            'password' => 'admin',
+        ]);
+
+        $response->assertRedirect('/admin/dashboard');
+        $this->assertAuthenticatedAs($this->admin);
+    }
+
+    public function test_user_can_login_with_nomor_hp()
+    {
+        // Test with unnormalized phone number input
+        $response = $this->post('/login', [
+            'username' => '089876543210',
+            'password' => 'password',
+        ]);
+
+        $response->assertRedirect('/booking');
+        $this->assertAuthenticatedAs($this->pelanggan);
+    }
+
+    public function test_membership_verifikasi_sets_expiry_date()
+    {
+        $lapangan = \App\Models\Lapangan::create([
+            'nama_lapangan' => 'Lapangan Test Member',
+            'harga_weekday' => 50000,
+            'harga_weekend' => 60000,
+            'status' => 'aktif',
+        ]);
+
+        $payment = \App\Models\MembershipPayment::create([
+            'user_id' => $this->pelanggan->id,
+            'paket' => 'weekday_pagi',
+            'jumlah_bayar' => 150000,
+            'metode_pembayaran' => 'transfer',
+            'bukti_pembayaran' => 'bukti.jpg',
+            'status_verifikasi' => 'menunggu',
+            'hari' => 'senin',
+            'jam_mulai' => '08:00:00',
+            'jam_selesai' => '09:00:00',
+            'lapangan_id' => $lapangan->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)->put("/admin/pembayaran-membership/{$payment->id}/verif", [
+            'status_verifikasi' => 'diverifikasi',
+            'catatan_admin' => 'Approved',
+        ]);
+
+        $response->assertRedirect();
+        
+        $this->pelanggan->refresh();
+        $this->assertEquals('weekday_pagi', $this->pelanggan->kategori_member);
+        $this->assertNotNull($this->pelanggan->membership_expires_at);
+        $this->assertTrue($this->pelanggan->membership_expires_at->isFuture());
+        // Harusnya bersisa sekitar 30 hari
+        $this->assertEquals(30, $this->pelanggan->sisaHariAktifMember());
+
+        // Uji coba perpanjangan dini: masa aktif harus diperpanjang 30 hari lagi (total 60 hari)
+        $payment2 = \App\Models\MembershipPayment::create([
+            'user_id' => $this->pelanggan->id,
+            'paket' => 'weekday_pagi',
+            'jumlah_bayar' => 150000,
+            'metode_pembayaran' => 'transfer',
+            'bukti_pembayaran' => 'bukti2.jpg',
+            'status_verifikasi' => 'menunggu',
+            'hari' => 'senin',
+            'jam_mulai' => '08:00:00',
+            'jam_selesai' => '09:00:00',
+            'lapangan_id' => $lapangan->id,
+        ]);
+
+        $response2 = $this->actingAs($this->admin)->put("/admin/pembayaran-membership/{$payment2->id}/verif", [
+            'status_verifikasi' => 'diverifikasi',
+            'catatan_admin' => 'Approved 2',
+        ]);
+
+        $this->pelanggan->refresh();
+        $this->assertEquals(60, $this->pelanggan->sisaHariAktifMember());
+    }
+
+    public function test_membership_check_expiry_command()
+    {
+        $lapangan = \App\Models\Lapangan::create([
+            'nama_lapangan' => 'Lapangan C',
+            'harga_weekday' => 50000,
+            'harga_weekend' => 60000,
+            'status' => 'aktif',
+        ]);
+
+        // 1. User dengan member aktif di masa depan
+        $memberActive = User::create([
+            'name' => 'Active Member',
+            'username' => 'active_member',
+            'password' => bcrypt('password'),
+            'role' => 'pelanggan',
+            'nomor_hp' => '081111111111',
+            'kategori_member' => 'weekday_pagi',
+            'membership_expires_at' => \Carbon\Carbon::now()->addDays(5),
+        ]);
+
+        // 2. User dengan member yang sudah lewat masa aktif (expired)
+        $memberExpired = User::create([
+            'name' => 'Expired Member',
+            'username' => 'expired_member',
+            'password' => bcrypt('password'),
+            'role' => 'pelanggan',
+            'nomor_hp' => '082222222222',
+            'kategori_member' => 'weekday_pagi',
+            'membership_expires_at' => \Carbon\Carbon::now()->subDays(1),
+        ]);
+
+        // Buat jadwal dan booking masa depan untuk member expired
+        $jadwalMasaDepan = \App\Models\Jadwal::create([
+            'lapangan_id' => $lapangan->id,
+            'tanggal' => \Carbon\Carbon::tomorrow()->format('Y-m-d'),
+            'jam_mulai' => '08:00:00',
+            'jam_selesai' => '09:00:00',
+            'status' => 'dipesan',
+            'keterangan' => 'Slot Member: Expired Member',
+        ]);
+
+        $bookingMasaDepan = \App\Models\Booking::create([
+            'user_id' => $memberExpired->id,
+            'jadwal_id' => $jadwalMasaDepan->id,
+            'lapangan_id' => $lapangan->id,
+            'tanggal_booking' => \Carbon\Carbon::tomorrow()->format('Y-m-d'),
+            'total_harga' => 150000,
+            'status' => 'dipesan',
+            'catatan' => 'Sesi Rutin Member (Paket weekday_pagi)',
+        ]);
+
+        // Jalankan perintah artisan
+        $this->artisan('membership:check-expiry')
+             ->expectsOutput('Memulai pengecekan masa aktif member...')
+             ->expectsOutput("User ID: {$memberExpired->id} | Nama: {$memberExpired->name} status member telah kedaluwarsa.")
+             ->assertExitCode(0);
+
+        $memberActive->refresh();
+        $memberExpired->refresh();
+        $jadwalMasaDepan->refresh();
+        $bookingMasaDepan->refresh();
+
+        $this->assertEquals('weekday_pagi', $memberActive->kategori_member);
+        $this->assertNotNull($memberActive->membership_expires_at);
+
+        $this->assertEquals('non-member', $memberExpired->kategori_member);
+        $this->assertNull($memberExpired->membership_expires_at);
+
+        // Jadwal masa depan harus terbebas
+        $this->assertEquals('tersedia', $jadwalMasaDepan->status);
+        $this->assertNull($jadwalMasaDepan->keterangan);
+
+        // Booking masa depan harus dibatalkan
+        $this->assertEquals('dibatalkan', $bookingMasaDepan->status);
     }
 }

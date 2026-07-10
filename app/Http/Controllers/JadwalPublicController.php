@@ -21,8 +21,6 @@ class JadwalPublicController extends Controller
      */
     public function index(Request $request)
     {
-        \App\Models\Booking::cancelExpiredGracefully();
-
         $tanggal       = $request->get('tanggal', today()->toDateString());
         $lapangan_id   = $request->get('lapangan_id');
         $status_filter = $request->get('status');
@@ -32,7 +30,7 @@ class JadwalPublicController extends Controller
 
         // Ambil semua jadwal (dipesan, pending, dan ditutup/diblokir admin)
         $booked_jadwals = Jadwal::with(['lapangan', 'booking.user'])
-            ->whereDate('tanggal', $tanggal)
+            ->where('tanggal', \Carbon\Carbon::parse($tanggal))
             ->whereIn('status', ['dipesan', 'pending', 'ditutup'])
             ->get();
 
@@ -48,6 +46,24 @@ class JadwalPublicController extends Controller
         $isWeekend = \Carbon\Carbon::parse($tanggal)->isWeekend();
 
         $hariLiburs = \App\Models\HariLibur::where('tanggal', $tanggal)->get();
+
+        // Preload membership payments for this day of week to prevent N+1 queries in the loop
+        $dayNames = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
+        $dayOfWeek = $dayNames[\Carbon\Carbon::parse($tanggal)->dayOfWeek];
+        $memberPayments = \App\Models\MembershipPayment::where('hari', $dayOfWeek)
+            ->whereIn('status_verifikasi', ['menunggu', 'diverifikasi'])
+            ->where(function ($q) use ($tanggal) {
+                $q->where('status_verifikasi', 'menunggu')
+                  ->orWhereHas('user', function ($qu) use ($tanggal) {
+                      $qu->whereIn('kategori_member', ['member', 'weekday_pagi', 'weekday_malam', 'weekend'])
+                        ->where(function ($query) use ($tanggal) {
+                            $query->whereNull('membership_expires_at')
+                                  ->orWhere('membership_expires_at', '>=', \Carbon\Carbon::parse($tanggal)->startOfDay());
+                        });
+                  });
+            })
+            ->with('user')
+            ->get();
 
         foreach ($lapangansTampil as $lap) {
             $slots = collect();
@@ -85,8 +101,23 @@ class JadwalPublicController extends Controller
                             if (empty($keterangan) && !empty($db_slot->keterangan)) {
                                 $keterangan = str_replace(['Booking Offline: ', 'Slot Member: '], '', $db_slot->keterangan);
                             }
+                            if (!empty($keterangan)) {
+                                $keterangan = preg_replace('/\s*\(#\d+\)$/', '', $keterangan);
+                            }
                         } else {
                             $keterangan = $db_slot->keterangan;
+                        }
+                    } else {
+                        // Cek apakah bentrok dengan slot rutin member (aktif atau pending)
+                        $memberSlot = $memberPayments->first(function ($mp) use ($lap, $start, $end) {
+                            return $mp->lapangan_id === $lap->id &&
+                                   $mp->jam_mulai < $end &&
+                                   $mp->jam_selesai > $start;
+                        });
+
+                        if ($memberSlot) {
+                            $status = 'dipesan';
+                            $keterangan = $memberSlot->user->name ?? 'Calon Member';
                         }
                     }
                 }
@@ -136,8 +167,6 @@ class JadwalPublicController extends Controller
      */
     public function show(Request $request, $lapanganId)
     {
-        \App\Models\Booking::cancelExpiredGracefully();
-
         $lapangan = Lapangan::findOrFail($lapanganId);
         $tanggal  = $request->get('tanggal', today()->toDateString());
 
@@ -145,7 +174,7 @@ class JadwalPublicController extends Controller
 
         $booked_jadwals = Jadwal::with('booking.user')
             ->where('lapangan_id', $lapanganId)
-            ->whereDate('tanggal', $tanggal)
+            ->where('tanggal', \Carbon\Carbon::parse($tanggal))
             ->whereIn('status', ['dipesan', 'pending', 'ditutup'])
             ->get();
 
@@ -153,6 +182,25 @@ class JadwalPublicController extends Controller
         $libur = $hariLiburs->first(function ($hl) use ($lapangan) {
             return $hl->lapangan_id === null || $hl->lapangan_id === $lapangan->id;
         });
+
+        // Preload membership payments for this court and day of week to prevent N+1 queries in the loop
+        $dayNames = ['minggu', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu'];
+        $dayOfWeek = $dayNames[\Carbon\Carbon::parse($tanggal)->dayOfWeek];
+        $memberPayments = \App\Models\MembershipPayment::where('lapangan_id', $lapanganId)
+            ->where('hari', $dayOfWeek)
+            ->whereIn('status_verifikasi', ['menunggu', 'diverifikasi'])
+            ->where(function ($q) use ($tanggal) {
+                $q->where('status_verifikasi', 'menunggu')
+                  ->orWhereHas('user', function ($qu) use ($tanggal) {
+                      $qu->whereIn('kategori_member', ['member', 'weekday_pagi', 'weekday_malam', 'weekend'])
+                        ->where(function ($query) use ($tanggal) {
+                            $query->whereNull('membership_expires_at')
+                                  ->orWhere('membership_expires_at', '>=', \Carbon\Carbon::parse($tanggal)->startOfDay());
+                        });
+                  });
+            })
+            ->with('user')
+            ->get();
 
         // Generate slot jam-an dari 07:00 sampai 24:00
         $jadwals = collect();
@@ -182,8 +230,21 @@ class JadwalPublicController extends Controller
                         if (empty($keterangan) && !empty($db_slot->keterangan)) {
                             $keterangan = str_replace(['Booking Offline: ', 'Slot Member: '], '', $db_slot->keterangan);
                         }
+                        if (!empty($keterangan)) {
+                            $keterangan = preg_replace('/\s*\(#\d+\)$/', '', $keterangan);
+                        }
                     } else {
                         $keterangan = $db_slot->keterangan;
+                    }
+                } else {
+                    // Cek apakah bentrok dengan slot rutin member (aktif atau pending)
+                    $memberSlot = $memberPayments->first(function ($mp) use ($start, $end) {
+                        return $mp->jam_mulai < $end && $mp->jam_selesai > $start;
+                    });
+
+                    if ($memberSlot) {
+                        $status = 'dipesan';
+                        $keterangan = $memberSlot->user->name ?? 'Calon Member';
                     }
                 }
             }

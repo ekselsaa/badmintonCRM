@@ -27,13 +27,13 @@
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead>
-                    <tr>
-                        <th width="5%">#</th>
-                        <th width="20%">Pelanggan</th>
-                        <th width="15%">Lapangan & Tanggal</th>
-                        <th width="15%">Rating</th>
-                        <th width="30%">Isi Ulasan</th>
-                        <th width="15%">Tampil di Beranda</th>
+                    <tr class="align-middle">
+                        <th class="text-nowrap" width="5%">No.</th>
+                        <th class="text-nowrap" width="20%">Pelanggan</th>
+                        <th class="text-nowrap" width="15%">Lapangan & Tanggal</th>
+                        <th class="text-center text-nowrap" width="15%">Rating</th>
+                        <th class="text-nowrap" width="30%">Isi Ulasan</th>
+                        <th class="text-center text-nowrap" width="15%">Tampil di Beranda</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -45,11 +45,11 @@
                             <small class="text-muted">{{ $u->user ? 'Pelanggan Terdaftar' : 'Offline' }}</small>
                         </td>
                         <td>
-                            <div class="fw-bold">{{ $u->lapangan->nama_lapangan ?? '-' }}</div>
-                            <small class="text-muted">{{ $u->tanggal_booking->format('d/m/Y') }}</small>
+                            <div class="fw-bold text-nowrap">{{ $u->lapangan->nama_lapangan ?? '-' }}</div>
+                            <small class="text-muted text-nowrap">{{ $u->tanggal_booking->format('d/m/Y') }}</small>
                         </td>
-                        <td>
-                            <div class="text-warning">
+                        <td class="text-center">
+                            <div class="text-warning text-nowrap">
                                 @for($i = 1; $i <= 5; $i++)
                                     @if($i <= $u->rating)
                                         <i class="bi bi-star-fill"></i>
@@ -64,16 +64,18 @@
                                 {{ $u->ulasan ?? '-' }}
                             </div>
                         </td>
-                        <td>
-                            <form action="{{ route('admin.ulasan.toggle-beranda', $u->id) }}" method="POST">
+                        <td class="text-center">
+                            <form action="{{ route('admin.ulasan.toggle-beranda', $u->id) }}" method="POST" class="mb-0">
                                 @csrf @method('PUT')
                                 @if($u->is_tampil_beranda)
-                                    <button class="btn btn-sm btn-success rounded-pill px-3 w-100">
-                                        <i class="bi bi-check-circle me-1"></i> Ditampilkan
+                                    <button type="submit" class="btn btn-sm btn-status-toggle status-active px-3" title="Klik untuk menyembunyikan ulasan ini dari beranda">
+                                        <span class="normal-text"><i class="bi bi-eye-fill me-1"></i> Ditampilkan</span>
+                                        <span class="hover-text"><i class="bi bi-eye-slash-fill me-1"></i> Sembunyikan</span>
                                     </button>
                                 @else
-                                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 w-100">
-                                        <i class="bi bi-eye-slash me-1"></i> Sembunyi
+                                    <button type="submit" class="btn btn-sm btn-status-toggle status-inactive px-3" title="Klik untuk menampilkan ulasan ini di beranda">
+                                        <span class="normal-text"><i class="bi bi-eye-slash me-1"></i> Disembunyikan</span>
+                                        <span class="hover-text"><i class="bi bi-eye-fill me-1"></i> Tampilkan</span>
                                     </button>
                                 @endif
                             </form>
@@ -99,3 +101,63 @@
     </div>
 </div>
 @endsection
+
+@push('styles')
+<style>
+    /* Styling interaktif untuk toggle status beranda */
+    .btn-status-toggle {
+        min-height: 32px;
+        transition: all 0.2s ease;
+        font-weight: 600 !important;
+        font-size: 0.78rem !important;
+        border-radius: 50px !important;
+        border: 1px solid transparent !important;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Tombol Aktif (Ditampilkan) */
+    .btn-status-toggle.status-active {
+        background-color: #ecfdf5 !important;
+        border-color: #a7f3d0 !important;
+        color: #059669 !important;
+    }
+    .btn-status-toggle.status-active .hover-text {
+        display: none;
+    }
+    .btn-status-toggle.status-active:hover {
+        background-color: #fef2f2 !important;
+        border-color: #fca5a5 !important;
+        color: #dc2626 !important;
+    }
+    .btn-status-toggle.status-active:hover .normal-text {
+        display: none;
+    }
+    .btn-status-toggle.status-active:hover .hover-text {
+        display: inline-block;
+    }
+
+    /* Tombol Nonaktif (Disembunyikan) */
+    .btn-status-toggle.status-inactive {
+        background-color: #f8fafc !important;
+        border-color: #cbd5e1 !important;
+        color: #64748b !important;
+    }
+    .btn-status-toggle.status-inactive .hover-text {
+        display: none;
+    }
+    .btn-status-toggle.status-inactive:hover {
+        background-color: #eff6ff !important;
+        border-color: #bfdbfe !important;
+        color: #2563eb !important;
+    }
+    .btn-status-toggle.status-inactive:hover .normal-text {
+        display: none;
+    }
+    .btn-status-toggle.status-inactive:hover .hover-text {
+        display: inline-block;
+    }
+</style>
+@endpush
+

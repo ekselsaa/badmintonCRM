@@ -584,17 +584,23 @@
     @stack('styles')
 </head>
 <body>
+    @php
+        $sidebarState = $_COOKIE['sidebarState'] ?? 'closed';
+        if (session('success') && (str_contains(session('success'), 'Selamat datang') || str_contains(session('success'), 'Registrasi berhasil') || str_contains(session('success'), 'lanjutkan proses booking'))) {
+            $sidebarState = 'closed';
+        }
+    @endphp
     <div class="d-flex">
         {{-- Sidebar Global --}}
         @if(auth()->check())
             @if(auth()->user()->role == 'admin')
-                @include('layouts.sidebar-admin')
+                @include('layouts.sidebar-admin', ['sidebarState' => $sidebarState])
             @else
-                @include('layouts.sidebar-pelanggan')
+                @include('layouts.sidebar-pelanggan', ['sidebarState' => $sidebarState])
             @endif
         @endif
 
-        <div class="main-content flex-grow-1">
+        <div class="main-content flex-grow-1 {{ $sidebarState === 'closed' ? 'expanded' : '' }}">
             {{-- Topbar Global --}}
             <div class="topbar">
                 <div class="d-flex align-items-center gap-3">
@@ -725,7 +731,10 @@
         if (sidebar && mainContent) {
             sidebar.classList.toggle('collapsed');
             mainContent.classList.toggle('expanded');
-            localStorage.setItem('sidebarState', sidebar.classList.contains('collapsed') ? 'closed' : 'open');
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            const state = isCollapsed ? 'closed' : 'open';
+            localStorage.setItem('sidebarState', state);
+            document.cookie = "sidebarState=" + state + "; path=/; max-age=31536000; SameSite=Lax";
         }
     }
 
@@ -736,13 +745,12 @@
         @if(session('success') && (str_contains(session('success'), 'Selamat datang') || str_contains(session('success'), 'Registrasi berhasil') || str_contains(session('success'), 'lanjutkan proses booking')))
             // User baru saja login → paksa sidebar tertutup
             localStorage.setItem('sidebarState', 'closed');
+            document.cookie = "sidebarState=closed; path=/; max-age=31536000; SameSite=Lax";
         @endif
 
         const state = localStorage.getItem('sidebarState');
-        // Default ke closed jika belum ada state (baru masuk)
-        if ((state === 'closed' || state === null) && sidebar && mainContent) {
-            sidebar.classList.add('collapsed');
-            mainContent.classList.add('expanded');
+        if (state) {
+            document.cookie = "sidebarState=" + state + "; path=/; max-age=31536000; SameSite=Lax";
         }
 
         // Setup Premium Toast Model

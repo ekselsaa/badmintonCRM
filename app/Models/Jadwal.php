@@ -13,7 +13,7 @@ class Jadwal extends Model
     public function lapangan() { return $this->belongsTo(Lapangan::class); }
     public function bookings() { return $this->hasMany(Booking::class); }
     // Alias hasOne untuk backward compat (ambil booking pertama aktif)
-    public function booking()  { return $this->hasOne(Booking::class); }
+    public function booking()  { return $this->hasOne(Booking::class)->whereIn('status', ['pending', 'dikonfirmasi', 'dipesan', 'selesai']); }
 
     public function scopeTersedia($query) { return $query->where('status', 'tersedia'); }
 

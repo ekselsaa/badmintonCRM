@@ -74,7 +74,7 @@
                     <div class="s-time">{{ substr($j->jam_mulai,0,5) }}</div>
                     <div class="s-until">s/d {{ substr($j->jam_selesai,0,5) }}</div>
                 </div>
-                @if(!empty($j->keterangan))
+                @if(!empty($j->keterangan) && !$isPast)
                     @php
                         $btnBg = match($j->status) {
                             'pending' => 'linear-gradient(135deg, #f59e0b, #d97706)',

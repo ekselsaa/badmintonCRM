@@ -23,7 +23,7 @@ class LoyaltyAdminController extends Controller
 {
     public function __construct(private LoyaltyPointService $loyaltyService) {}
 
-    // ─── Dashboard Loyalty Admin ──────────────────────────────────────
+    // Dashboard Loyalty Admin
 
     /**
      * Tampilkan ringkasan program loyalty dan daftar pelanggan beserta poin.
@@ -55,7 +55,7 @@ class LoyaltyAdminController extends Controller
         if ($request->search) {
             $query->where(function ($q) use ($request) {
                 $q->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('email', 'like', '%' . $request->search . '%');
+                  ->orWhere('username', 'like', '%' . $request->search . '%');
             });
         }
 
@@ -66,7 +66,7 @@ class LoyaltyAdminController extends Controller
         return view('admin.loyalty.index', compact('stats', 'pelanggan', 'menuRedeem', 'jenisPaket'));
     }
 
-    // ─── Kredit Poin Paket Member (Manual Admin) ──────────────────────
+    // Kredit Poin Paket Member (Manual Admin)
 
     /**
      * Admin mengkreditkan poin saat mendaftarkan/memperpanjang paket member.
@@ -97,7 +97,7 @@ class LoyaltyAdminController extends Controller
         }
     }
 
-    // ─── Klaim Voucher di Kasir ────────────────────────────────────────
+    // Klaim Voucher di Kasir
 
     /**
      * Admin memvalidasi dan menandai voucher sebagai "digunakan"
@@ -111,13 +111,18 @@ class LoyaltyAdminController extends Controller
             'kode_voucher.required' => 'Kode voucher wajib diisi.',
         ]);
 
-        $kode = strtolower(trim($request->kode_voucher));
+        $kode = trim($request->kode_voucher);
+        $kodeLower = strtolower($kode);
+        $kodeUpper = strtoupper($kode);
 
         // 1. Cari di Redemption (Voucher penukaran poin)
         $voucher = Redemption::with('user')
-            ->where(function ($q) use ($kode) {
-                $q->where(DB::raw('LOWER(kode_voucher)'), $kode)
-                  ->orWhere(DB::raw('LOWER(SUBSTR(kode_voucher, 1, 8))'), $kode);
+            ->where(function ($q) use ($kode, $kodeLower, $kodeUpper) {
+                if (strlen($kode) === 8) {
+                    $q->where('kode_voucher', 'like', $kode . '%');
+                } else {
+                    $q->whereIn('kode_voucher', [$kode, $kodeLower, $kodeUpper]);
+                }
             })
             ->first();
 
@@ -126,9 +131,12 @@ class LoyaltyAdminController extends Controller
         // 2. Jika tidak ditemukan, cari di Voucher (Voucher status keanggotaan)
         if (!$voucher) {
             $voucher = \App\Models\Voucher::with('user')
-                ->where(function ($q) use ($kode) {
-                    $q->where(DB::raw('LOWER(voucher_code)'), $kode)
-                      ->orWhere(DB::raw('LOWER(SUBSTR(voucher_code, 1, 8))'), $kode);
+                ->where(function ($q) use ($kode, $kodeLower, $kodeUpper) {
+                    if (strlen($kode) === 8) {
+                        $q->where('voucher_code', 'like', $kode . '%');
+                    } else {
+                        $q->whereIn('voucher_code', [$kode, $kodeLower, $kodeUpper]);
+                    }
                 })
                 ->first();
             $isRedemption = false;

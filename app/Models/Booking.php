@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Booking extends Model
 {
+    use \App\Traits\NormalizePhoneNumber;
     protected $fillable = [
         'user_id', 'jadwal_id', 'lapangan_id',
         'tanggal_booking', 'total_harga', 'snap_token', 'status', 'catatan', 'fasilitas',
@@ -59,6 +60,11 @@ class Booking extends Model
                         'digunakan_pada'  => null,
                         'booking_id'      => null,
                     ]);
+
+                    if ($wasConfirmed) {
+                        $loyaltyService = new \App\Services\LoyaltyPointService();
+                        $loyaltyService->debitPoinDariBatalBooking($booking);
+                    }
                 }
             }
         });
@@ -79,6 +85,9 @@ class Booking extends Model
             // Jika status booking aktif/selesai dihapus, kembalikan/refund stok consumable
             if (in_array($booking->status, ['dipesan', 'selesai'])) {
                 $booking->adjustFasilitasStock('increment');
+
+                $loyaltyService = new \App\Services\LoyaltyPointService();
+                $loyaltyService->debitPoinDariBatalBooking($booking);
             }
 
             // Reset status jadwal ke 'tersedia' jika tidak ada booking aktif lain untuk jadwal ini
@@ -99,7 +108,7 @@ class Booking extends Model
     public function adjustFasilitasStock(string $action = 'decrement'): void
     {
         // Pastikan relasi bookingFasilitas dimuat
-        $this->loadMissing('bookingFasilitas.fasilitas');
+        $this->load('bookingFasilitas.fasilitas');
 
         foreach ($this->bookingFasilitas as $bf) {
             $fasilitas = $bf->fasilitas;
@@ -177,6 +186,18 @@ class Booking extends Model
                 // Ambil jadwal_id sebelum dihapus
                 $expiredJadwalIds = static::whereIn('id', $expiredIds)->pluck('jadwal_id')->filter()->unique()->toArray();
 
+                // Release vouchers/redemptions first
+                Redemption::whereIn('booking_id', $expiredIds)->update([
+                    'status'          => 'aktif',
+                    'digunakan_pada'  => null,
+                    'booking_id'      => null,
+                ]);
+                Voucher::whereIn('booking_id', $expiredIds)->update([
+                    'status'          => 'aktif',
+                    'digunakan_pada'  => null,
+                    'booking_id'      => null,
+                ]);
+
                 // Hapus child records + booking
                 \App\Models\BookingFasilitas::whereIn('booking_id', $expiredIds)->delete();
                 \App\Models\Pembayaran::whereIn('booking_id', $expiredIds)->delete();
@@ -220,5 +241,13 @@ class Booking extends Model
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::warning('cancelExpiredGracefully error: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Mutator untuk menormalisasi nomor HP pemesan offline.
+     */
+    public function setNoHpOfflineAttribute($value)
+    {
+        $this->attributes['no_hp_offline'] = $this->normalizePhoneNumber($value);
     }
 }

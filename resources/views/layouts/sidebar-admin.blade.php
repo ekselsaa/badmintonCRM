@@ -1,5 +1,5 @@
 {{-- Sidebar Admin --}}
-<div class="sidebar">
+<div class="sidebar {{ ($sidebarState ?? 'closed') === 'closed' ? 'collapsed' : '' }}">
     {{-- Brand --}}
     <div class="sidebar-brand">
         <a href="{{ route('admin.dashboard') }}" class="text-decoration-none">
