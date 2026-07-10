@@ -24,6 +24,10 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrapFive();
 
+        if ($this->app->environment('production')) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
         // Bagikan hitungan notifikasi pending ke sidebar admin di setiap request
         // Di-cache 10 menit agar tidak hit DB di setiap page load, di-invalidate saat data berubah
         View::composer('layouts.sidebar-admin', function ($view) {

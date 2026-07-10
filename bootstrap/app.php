@@ -11,6 +11,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Percayakan proxy load balancer (Penting untuk Railway/Cloudflare)
+        $middleware->trustProxies(at: '*');
+
         // Daftarkan alias middleware untuk role-based access control
         $middleware->alias([
             'admin'     => \App\Http\Middleware\AdminMiddleware::class,
