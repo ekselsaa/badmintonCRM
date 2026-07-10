@@ -10,6 +10,44 @@ use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminProfilController;
 use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\LoyaltyController;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+// Route sementara untuk import database lokal (Hapus setelah selesai!)
+Route::get('/import-my-local-data-xxx123', function() {
+    if (request('secret') !== 'AnbiyaaLocalImport2024') {
+        abort(403, 'Akses Ditolak');
+    }
+    
+    $sqlFile = base_path('badminton_crm.sql');
+    if (!file_exists($sqlFile)) {
+        return "Gagal: File <code>badminton_crm.sql</code> tidak ditemukan di root project.";
+    }
+    
+    try {
+        Schema::disableForeignKeyConstraints();
+        
+        // Ambil semua tabel yang ada saat ini dan drop
+        $tables = Schema::getTables();
+        $dropped = [];
+        foreach ($tables as $table) {
+            Schema::drop($table['name']);
+            $dropped[] = $table['name'];
+        }
+        
+        Schema::enableForeignKeyConstraints();
+        
+        // Baca dan jalankan file SQL
+        $sql = file_get_contents($sqlFile);
+        DB::unprepared($sql);
+        
+        return "<h3>✅ Berhasil Import Database!</h3>" .
+               "<p>Tabel yang di-drop sebelumnya: " . (implode(', ', $dropped) ?: 'tidak ada') . "</p>" .
+               "<p>Silakan hapus file <code>badminton_crm.sql</code> dari folder lokal dan hapus route ini dari <code>routes/web.php</code> demi keamanan.</p>";
+    } catch (\Throwable $e) {
+        return "<h3>❌ Gagal Import!</h3><p>Error: " . htmlspecialchars($e->getMessage()) . "</p>";
+    }
+});
 
 /*
 |--------------------------------------------------------------------------
