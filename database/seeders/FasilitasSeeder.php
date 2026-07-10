@@ -44,7 +44,15 @@ class FasilitasSeeder extends Seeder
         ];
 
         foreach ($fasilitas as $f) {
-            Fasilitas::create($f);
+            Fasilitas::firstOrCreate(
+                ['nama' => $f['nama']],
+                [
+                    'harga' => $f['harga'],
+                    'stok' => $f['stok'],
+                    'icon' => $f['icon'],
+                    'is_active' => $f['is_active'],
+                ]
+            );
         }
     }
 }

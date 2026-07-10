@@ -16,19 +16,29 @@ class DatabaseSeeder extends Seeder
         // ===================================================
         // 1. ADMIN
         // ===================================================
-        User::create([
-            'name'     => 'Administrator',
-            'username' => 'admin',
-            'password' => Hash::make('admin'),
-            'role'     => 'admin',
-        ]);
+        User::firstOrCreate(
+            ['username' => 'admin'],
+            [
+                'name'     => 'Administrator',
+                'password' => Hash::make('admin'),
+                'role'     => 'admin',
+            ]
+        );
 
         // ===================================================
         // 2. LAPANGAN
         // ===================================================
-        Lapangan::create(['nama_lapangan' => 'Lapangan 1', 'deskripsi' => 'Karpet premium badminton, pencahayaan LED, Kipas angin', 'harga_weekday' => 55000, 'harga_weekend' => 60000, 'status' => 'aktif']);
-        Lapangan::create(['nama_lapangan' => 'Lapangan 2', 'deskripsi' => 'Karpet premium badminton, pencahayaan LED, Kipas angin', 'harga_weekday' => 55000, 'harga_weekend' => 60000, 'status' => 'aktif']);
-        Lapangan::create(['nama_lapangan' => 'Lapangan 3', 'deskripsi' => 'Karpet premium badminton, pencahayaan LED, Kipas angin', 'harga_weekday' => 55000, 'harga_weekend' => 60000, 'status' => 'aktif']);
+        foreach (['Lapangan 1', 'Lapangan 2', 'Lapangan 3'] as $lapanganName) {
+            Lapangan::firstOrCreate(
+                ['nama_lapangan' => $lapanganName],
+                [
+                    'deskripsi' => 'Karpet premium badminton, pencahayaan LED, Kipas angin',
+                    'harga_weekday' => 55000,
+                    'harga_weekend' => 60000,
+                    'status' => 'aktif'
+                ]
+            );
+        }
 
         // ===================================================
         // 3. JADWAL TERSEDIA (14 hari ke depan)

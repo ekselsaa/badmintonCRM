@@ -4,6 +4,10 @@ set -e
 echo "=== Running migrations ==="
 php artisan migrate --force
 
+echo "=== Running database seeds ==="
+php artisan db:seed --force
+
+
 echo "=== Creating storage link ==="
 php artisan storage:link || true
 
